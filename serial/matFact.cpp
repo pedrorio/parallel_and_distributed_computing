@@ -21,24 +21,16 @@ std::vector<std::vector<double>> B;
 //numberOfLatentFeatures
 //numberOfItems numberOfUsers numberOfNonZeroElements
 
+#include <stdlib.h>
+
 #define RAND01 ((double)random() / (double)RAND_MAX)
 
 void random_fill_LR(int nU, int nI, int nF) {
     srandom(0);
-    for (int i = 0; i < nU; i++)
-        for (int j = 0; j < nF; j++) {
-            std::cout << "user i :" << i << std::endl;
-            std::cout << "item j :" << j << std::endl;
-            std::cout << "element:" << RAND01 / (double) nF << std::endl;
-            L[i][j] = RAND01 / (double) nF;
-        }
-    std::cout << "L is done" << std::endl;
-
-    for (int i = 0; i < nF; i++)
-        for (int j = 0; j < nI; j++)
+    for(int i = 0; i < nU; i++) for(int j = 0; j < nF; j++)
+            L[i][j] = RAND01 / (double) nF; for(int i = 0; i < nF; i++)
+        for(int j = 0; j < nI; j++)
             R[i][j] = RAND01 / (double) nF;
-    std::cout << "R is done" << std::endl;
-    
 }
 
 // A = i Items, u Users, Items and Users
@@ -59,7 +51,7 @@ int main(int argc, char *argv[]) {
     printf("inFile: %s\n", argv[1]);
 
     std::ifstream inFile(argv[1]);
-    if (inFile.is_open()) {
+//    if (inFile.is_open()) {
 
         int lineNumber = 1;
         for (std::string line; std::getline(inFile, line);) {
@@ -81,8 +73,11 @@ int main(int argc, char *argv[]) {
             } else if (lineNumber == 4) {
                 std::vector<std::string> results(std::istream_iterator<std::string>{iss},
                                                  std::istream_iterator<std::string>());
-                numberOfItems = std::stoi(results[0]);
-                numberOfUsers = std::stoi(results[1]);
+                // TODO: OK
+                numberOfUsers = std::stoi(results[0]);
+                // TODO: OK
+                numberOfItems = std::stoi(results[1]);
+                // TODO: OK
                 numberOfNonZeroElements = std::stoi(results[2]);
 
                 std::vector<std::vector<double>> LOCAL_A(numberOfUsers, std::vector<double>(numberOfItems));
@@ -93,28 +88,112 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                std::cout << "A was initialised" << std::endl;
+//                std::cout << std::endl;
+                for (int i = 0; i < numberOfUsers; i++) {
+                    for (int j = 0; j < numberOfItems; j++) {
+                        LOCAL_A[i][j] = 0;
+//                        std::cout << std::fixed << std::setprecision(6) << LOCAL_A[i][j] << " ";
+                    }
+                }
+//                std::cout << std::endl;
+
+                // TODO: OK
                 A = LOCAL_A;
+
             } else {
                 std::vector<std::string> results(std::istream_iterator<std::string>{iss},
                                                  std::istream_iterator<std::string>());
                 int userIndex = std::stoi(results[0]);
                 int itemIndex = std::stoi(results[1]);
                 double element = std::stod(results[2]);
+
+                // TODO: OK
                 A[userIndex][itemIndex] = element;
             }
-            std::cout << line << '\n';
+//            std::cout << line << '\n';
             lineNumber++;
         }
         inFile.close();
-    } else {
-        std::cout << "Unable to open file" << std::endl;
-    }
+//    }
+
     std::vector<std::vector<double>> LOCAL_R(numberOfLatentFeatures, std::vector<double>(numberOfItems));
     std::vector<std::vector<double>> LOCAL_L(numberOfUsers, std::vector<double>(numberOfLatentFeatures));
     R = LOCAL_R;
     L = LOCAL_L;
 
     random_fill_LR(numberOfUsers, numberOfItems, numberOfLatentFeatures);
+
+    std::vector<std::vector<double>> LOCAL_B(numberOfUsers, std::vector<double>(numberOfItems));
+
+    for (int i = 0; i < numberOfUsers; i++) {
+        for (int j = 0; j < numberOfItems; j++) {
+            LOCAL_B[i][j] = 0;
+        }
+    }
+
+    // multiply L and R to get B
+    for (int user = 0; user < numberOfUsers; ++user) {
+        for (int item = 0; item < numberOfItems; ++item) {
+            for (int latentFeature = 0; latentFeature < numberOfLatentFeatures; ++latentFeature) {
+                LOCAL_B[user][item] += L[user][latentFeature] * R[latentFeature][item];
+            }
+        }
+    }
+
+    B = LOCAL_B;
+
+
+    // print the matrices to a file
+    std::ofstream matFile;
+    matFile.open("./instances/test.mats");
+
+
+    matFile << "Initial matrix A" << std::endl;
+    std::cout << "Initial matrix A" << std::endl;
+    for (int i = 0; i < numberOfUsers; i++) {
+        for (int j = 0; j < numberOfItems; j++) {
+            matFile << std::fixed << std::setprecision(6) << A[i][j] << " ";
+            std::cout << std::fixed << std::setprecision(6) << A[i][j] << " ";
+        }
+        matFile << std::endl;
+        std::cout << std::endl;
+    }
+
+    matFile << "Initial matrix L" << std::endl;
+    std::cout << "Initial matrix L" << std::endl;
+    for (int i = 0; i < numberOfUsers; i++) {
+        for (int j = 0; j < numberOfLatentFeatures; j++) {
+            matFile << std::fixed << std::setprecision(6) << L[i][j] << " ";
+            std::cout << std::fixed << std::setprecision(6) << L[i][j] << " ";
+        }
+        matFile << std::endl;
+        std::cout << std::endl;
+    }
+
+    matFile << "Initial matrix R" << std::endl;
+    std::cout << "Initial matrix R" << std::endl;
+    for (int i = 0; i < numberOfLatentFeatures; i++) {
+        for (int j = 0; j < numberOfItems; j++) {
+            matFile << std::fixed << std::setprecision(6) << R[i][j] << " ";
+            std::cout << std::fixed << std::setprecision(6) << R[i][j] << " ";
+        }
+        matFile << std::endl;
+        std::cout << std::endl;
+    }
+
+    matFile << "Initial matrix B" << std::endl;
+    std::cout << "Initial matrix B" << std::endl;
+    for (int i = 0; i < numberOfUsers; i++) {
+        for (int j = 0; j < numberOfItems; j++) {
+            matFile << std::fixed << std::setprecision(6) << B[i][j] << " ";
+            std::cout << std::fixed << std::setprecision(6) << B[i][j] << " ";
+        }
+        matFile << std::endl;
+        std::cout << std::endl;
+    }
+
+    matFile.close();
+
+
     return 0;
 }
