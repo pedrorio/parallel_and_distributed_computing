@@ -10,3 +10,4 @@
 !**/serial
 **/serial/matFact
 **/serial/test/unitTests
+.idea

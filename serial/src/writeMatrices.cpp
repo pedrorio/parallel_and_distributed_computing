@@ -2,27 +2,19 @@
 // Created by Pedro Rio on 14/03/2020.
 //
 
-#include "writeInitialMatrices.h"
+#include "writeMatrices.h"
 
-void writeInitialMatrices(std::string &matrixFileName, std::vector<std::vector<double>> &A,
+void writeMatrices(std::string &matrixFileName,
                           std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
-                          std::vector<std::vector<double>> &B) {
+                          std::vector<std::vector<double>> &B, int &iterationNumber) {
 
     std::ofstream matFile(matrixFileName);
 
-    matFile << "Initial matrix A" << std::endl;
-    std::cout << "Initial matrix A" << std::endl;
-    for (auto & i : A) {
-        for (double j : i) {
-            matFile << std::fixed << std::setprecision(6) << j << " ";
-            std::cout << std::fixed << std::setprecision(6) << j << " ";
-        }
-        matFile << std::endl;
-        std::cout << std::endl;
-    }
+    matFile << "Iter=" << iterationNumber << std::endl;
+    std::cout << "Iter=" << iterationNumber << std::endl;
 
-    matFile << "Initial matrix L" << std::endl;
-    std::cout << "Initial matrix L" << std::endl;
+    matFile << "Matrix L" << std::endl;
+    std::cout << "Matrix L" << std::endl;
     for (auto & i : L) {
         for (double j : i) {
             matFile << std::fixed << std::setprecision(6) << j << " ";
@@ -32,8 +24,8 @@ void writeInitialMatrices(std::string &matrixFileName, std::vector<std::vector<d
         std::cout << std::endl;
     }
 
-    matFile << "Initial matrix R" << std::endl;
-    std::cout << "Initial matrix R" << std::endl;
+    matFile << "Matrix R" << std::endl;
+    std::cout << "Matrix R" << std::endl;
     for (auto & i : R) {
         for (double j : i) {
             matFile << std::fixed << std::setprecision(6) << j << " ";
@@ -43,8 +35,8 @@ void writeInitialMatrices(std::string &matrixFileName, std::vector<std::vector<d
         std::cout << std::endl;
     }
 
-    matFile << "Initial matrix B" << std::endl;
-    std::cout << "Initial matrix B" << std::endl;
+    matFile << "Matrix B" << std::endl;
+    std::cout << "Matrix B" << std::endl;
     for (auto & i : B) {
         for (double j : i) {
             matFile << std::fixed << std::setprecision(6) << j << " ";

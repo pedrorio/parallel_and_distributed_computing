@@ -11,7 +11,7 @@
 #include <sstream>
 #include <vector>
 
-void readInput(std::ifstream &inFile, std::vector<std::vector<double>> &A, int &numberOfIterations,
+void readInput(std::string inputFileName, std::vector<std::vector<double>> &A, int &numberOfIterations,
                int &numberOfLatentFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
                int &numberOfNonZeroElements);
 

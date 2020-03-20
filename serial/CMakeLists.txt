@@ -12,9 +12,11 @@ add_executable(
         matFact.cpp
         src/readInput.cpp src/readInput.h
         src/writeInitialMatrices.cpp src/writeInitialMatrices.h
+        src/writeMatrices.cpp src/writeMatrices.h
         src/initialB.cpp src/initialB.h
         src/initialLR.cpp src/initialLR.h
         src/updateB.cpp src/updateB.h
+        src/updateLR.cpp src/updateLR.h
 )
 
 find_package(OpenMP REQUIRED)

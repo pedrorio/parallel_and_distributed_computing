@@ -9,7 +9,7 @@
 #include <fstream>
 #include <vector>
 
-void writeInitialMatrices(std::ofstream &matFile, std::vector<std::vector<double>> &A,
+void writeInitialMatrices(std::string &matrixFileName, std::vector<std::vector<double>> &A,
                           std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
                           std::vector<std::vector<double>> &B);
 
