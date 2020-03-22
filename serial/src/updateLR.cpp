@@ -9,10 +9,11 @@ void
 updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<double>> &B, std::vector<std::vector<double>> &L,
          std::vector<std::vector<double>> &R, std::vector<std::vector<double>> &StoreL,
          std::vector<std::vector<double>> &StoreR,
-         int &numberOfUsers, int &numberOfItems, int &numberOfLatentFeatures, int &numberOfNonZeroElements,
+         int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, int &numberOfNonZeroElements,
          double &convergenceCoefficient) {
 
-//     compute -2(Aij - Bij) * Mij
+//     compute Rkji = 2(Aij - Bij) * -1 * Lik and sum it for all i
+//     compute Likj = 2(Aij - Bij) * -1 * Rkj and sum it for all j
 //     i => user
 //     j => item
 //     k => latentFeature
@@ -20,45 +21,51 @@ updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<double>> &
     double itemSum = 0;
     double userSum = 0;
 
-    std::vector<std::vector<double>> D(numberOfUsers, std::vector<double>(numberOfItems, 0));
-    std::vector<std::vector<double>> DL(numberOfUsers, std::vector<double>(numberOfLatentFeatures, 0));
-    std::vector<std::vector<double>> DR(numberOfLatentFeatures, std::vector<double>(numberOfItems, 0));
+    //     compute dDij/dLikj = Likj = 2(Aij - Bij) * -1 * Rkj and sum for all j
+    //     Dij = SDij - a * dDij/dRkji
+    //     compute dDij/dRkji = 2(Aij - Bij) * -1 * SLik and sum for all i
+    //     Rkj = SRkj - a * dDij/dRkji
+
+    L = StoreL;
+    R = StoreR;
+
+    std::vector<std::vector<int>> nonZeroElementIndexes;
+    std::vector<int> items;
+
+    //  Likj - ikj sums all j
+    //  Rkji - kji sums all i
+
 
     for (int user = 0; user < numberOfUsers; user++) {
         for (int item = 0; item < numberOfItems; item++) {
-            if (A[user][item] == 0) continue;
-            D[user][item] = -2 * (A[user][item] - B[user][item]);
-            for (int latentFeature = 0; latentFeature < numberOfLatentFeatures; latentFeature++) {
-                // sum the items
-                DL[user][latentFeature] = D[user][item] * StoreR[latentFeature][item];
-                // sum the users
-                DR[latentFeature][item] = D[user][item] * StoreL[user][latentFeature];
+            if (A[user][item] != 0) {
+                nonZeroElementIndexes.push_back({user, item});
             }
         }
     }
 
-    for (int latentFeature = 0; latentFeature < numberOfLatentFeatures; latentFeature++) {
-        for (int user = 0; user < numberOfUsers; user++) {
-            // sum the items
-            itemSum = 0;
-            for (int item = 0; item < numberOfItems; item++) {
-                if (A[user][item] == 0) {
-                    break;
-                }
-                itemSum += DL[user][latentFeature];
+    for (auto &nonZeroElementIndex: nonZeroElementIndexes) {
+        for (int feature = 0; feature < numberOfFeatures; feature++) {
+            int user = nonZeroElementIndex[0];
+            int item = nonZeroElementIndex[1];
+
+            for (int userNumber = 0; userNumber < numberOfUsers; userNumber++) {
+                userSum -= 2 * (A[userNumber][item] - B[userNumber][item]) * StoreL[userNumber][feature];
             }
-            L[user][latentFeature] = StoreL[user][latentFeature] - convergenceCoefficient * itemSum;
+
+            for (int itemNumber = 0; itemNumber < numberOfItems; itemNumber++) {
+                itemSum -= 2 * (A[user][itemNumber] - B[user][itemNumber]) * StoreR[feature][itemNumber];
+            }
+
+//            userSum -= 2 * (A[user][item] - B[user][item]) * StoreL[user][feature];
+//            itemSum -= 2 * (A[user][item] - B[user][item]) * StoreR[feature][item];
         }
 
-        for (int item = 0; item < numberOfItems; item++) {
-            userSum = 0;
-            for (int user = 0; user < numberOfUsers; user++) {
-                if (A[user][item] == 0) {
-                    break;
-                }
-                userSum += DR[latentFeature][item];
-            }
-            R[latentFeature][item] = StoreR[latentFeature][item] - convergenceCoefficient * userSum;
+        for (int feature = 0; feature < numberOfFeatures; feature++) {
+            int user = nonZeroElementIndex[0];
+            int item = nonZeroElementIndex[1];
+            L[user][feature] = StoreL[user][feature] - convergenceCoefficient * itemSum;
+            R[feature][item] = StoreR[feature][item] - convergenceCoefficient * userSum;
         }
     }
 };
