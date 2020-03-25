@@ -8,6 +8,6 @@
 #include <vector>
 
 void updateB(std::vector<std::vector<double>> &B, std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
-        int &numberOfUsers, int &numberOfItems, int &numberOfLatentFeatures);
+        int &numberOfUsers, int &numberOfItems, int &numberOfFeatures);
 
 #endif //SERIAL_UPDATEB_H

@@ -7,7 +7,7 @@
 
 void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
-               int &numberOfLatentFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
+               int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
                int &numberOfNonZeroElements) {
     std::ifstream inFile(inputFileName);
     if (inFile.is_open()) {
@@ -25,7 +25,7 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
                     break;
                 }
                 case 3: {
-                    numberOfLatentFeatures = std::stoi(line);
+                    numberOfFeatures = std::stoi(line);
                     break;
                 }
                 case 4: {

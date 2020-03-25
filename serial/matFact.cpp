@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
     time_t begin = clock();
 
     int numberOfIterations;
-    int numberOfLatentFeatures;
+    int numberOfFeatures;
     double convergenceCoefficient;
 
     int numberOfUsers;
@@ -34,12 +34,12 @@ int main(int argc, char *argv[]) {
     std::string inputFileName = argv[1];
 
     readInput(inputFileName, A, nonZeroElementIndexes,
-              numberOfIterations, numberOfLatentFeatures, convergenceCoefficient,
+              numberOfIterations, numberOfFeatures, convergenceCoefficient,
               numberOfUsers, numberOfItems, numberOfNonZeroElements);
 
     initialB(B, numberOfUsers, numberOfItems);
-    initialLR(L, R, numberOfUsers, numberOfItems, numberOfLatentFeatures);
-    updateB(B, L, R, numberOfUsers, numberOfItems, numberOfLatentFeatures);
+    initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
+    updateB(B, L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
     writeInitialMatrices(matrixFileName, A, L, R, B);
 
@@ -47,16 +47,14 @@ int main(int argc, char *argv[]) {
     std::vector<std::vector<double>> StoreR;
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
-
         StoreL = L;
         StoreR = R;
 
         updateLR(A, nonZeroElementIndexes, B, L, R, StoreL, StoreR, numberOfUsers, numberOfItems,
-                 numberOfLatentFeatures,
+                 numberOfFeatures,
                  numberOfNonZeroElements,
                  convergenceCoefficient);
-        updateB(B, L, R, numberOfUsers, numberOfItems, numberOfLatentFeatures);
-        writeMatrices(matrixFileName, L, R, B, iteration);
+        writeMatrices(matrixFileName, L, R, iteration);
 
     }
 

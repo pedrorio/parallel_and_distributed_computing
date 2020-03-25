@@ -13,7 +13,7 @@
 
 void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
-               int &numberOfLatentFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
+               int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
                int &numberOfNonZeroElements);
 
 #endif //SERIAL_READINPUT_H

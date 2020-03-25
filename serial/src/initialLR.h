@@ -9,7 +9,7 @@
 #include <vector>
 
 void initialLR(std::vector <std::vector<double>> &L, std::vector <std::vector<double>> &R,
-               int &numberOfUsers, int &numberOfItems, int &numberOfLatentFeatures);
+               int &numberOfUsers, int &numberOfItems, int &numberOfFeatures);
 
 
 #endif //SERIAL_INITIALLR_H

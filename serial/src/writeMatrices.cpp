@@ -5,20 +5,22 @@
 #include "writeMatrices.h"
 
 void writeMatrices(std::string &matrixFileName,
-                          std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
-                          std::vector<std::vector<double>> &B, int &iterationNumber) {
+                   std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
+                   int &iterationNumber) {
 
     std::ofstream matFile(matrixFileName);
+
+    std::vector<std::vector<double>> B(L.size(), std::vector<double>(R[0].size()));
 
     matFile << "Iter=" << iterationNumber << std::endl;
     std::cout << "Iter=" << iterationNumber << std::endl;
 
     matFile << "Matrix L" << std::endl;
     std::cout << "Matrix L" << std::endl;
-    for (auto & i : L) {
-        for (double j : i) {
-            matFile << std::fixed << std::setprecision(6) << j << " ";
-            std::cout << std::fixed << std::setprecision(6) << j << " ";
+    for (auto &i : L) {
+        for (double k : i) {
+            matFile << std::fixed << std::setprecision(6) << k << " ";
+            std::cout << std::fixed << std::setprecision(6) << k << " ";
         }
         matFile << std::endl;
         std::cout << std::endl;
@@ -26,10 +28,10 @@ void writeMatrices(std::string &matrixFileName,
 
     matFile << "Matrix R" << std::endl;
     std::cout << "Matrix R" << std::endl;
-    for (auto & i : R) {
-        for (double j : i) {
-            matFile << std::fixed << std::setprecision(6) << j << " ";
-            std::cout << std::fixed << std::setprecision(6) << j << " ";
+    for (auto &j : R) {
+        for (double k : j) {
+            matFile << std::fixed << std::setprecision(6) << k << " ";
+            std::cout << std::fixed << std::setprecision(6) << k << " ";
         }
         matFile << std::endl;
         std::cout << std::endl;
@@ -37,10 +39,14 @@ void writeMatrices(std::string &matrixFileName,
 
     matFile << "Matrix B" << std::endl;
     std::cout << "Matrix B" << std::endl;
-    for (auto & i : B) {
-        for (double j : i) {
-            matFile << std::fixed << std::setprecision(6) << j << " ";
-            std::cout << std::fixed << std::setprecision(6) << j << " ";
+
+    for (int i = 0; i < L.size(); i++) {
+        for (int j = 0; j < R[0].size(); j++) {
+            for (int k = 0; k < R.size(); k++) {
+                B[i][j] += L[i][k] * R[k][j];
+            }
+            matFile << std::fixed << std::setprecision(6) << B[i][j] << " ";
+            std::cout << std::fixed << std::setprecision(6) << B[i][j] << " ";
         }
         matFile << std::endl;
         std::cout << std::endl;

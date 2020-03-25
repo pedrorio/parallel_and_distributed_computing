@@ -13,50 +13,27 @@ updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<int>> &non
          int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, int &numberOfNonZeroElements,
          double &convergenceCoefficient) {
 
-//     compute Rkji = 2(Aij - Bij) * -1 * Lik and sum it for all i
-//     compute Likj = 2(Aij - Bij) * -1 * Rkj and sum it for all j
-//     i => user
-//     j => item
-//     k => latentFeature
+//    L = StoreL;
+//    R = StoreR;
 
-    double sumForAllUsersOfTheDerivativesWithRespectToR;
-    double sumForAllItemsOfTheDerivativesWithRespectToL;
+    double prediction_i_j;
 
-    //     compute dDij/dLikj = Likj = 2(Aij - Bij) * -1 * Rkj and sum for all j
-    //     Dij = SDij - a * dDij/dRkji
-    //     compute dDij/dRkji = 2(Aij - Bij) * -1 * SLik and sum for all i
-    //     Rkj = SRkj - a * dDij/dRkji
+    for (int i = 0; i < A.size(); i++) {
+        for (int j = 0; j < A[i].size(); j++) {
+            if (A[i][j] > 0) {
 
-    L = StoreL;
-    R = StoreR;
+                // dot product
+                prediction_i_j = 0;
+                for (int k = 0; k < numberOfFeatures; k++) {
+                        prediction_i_j += L[i][k] * R[k][j];
+                }
+                double delta_i_j = A[i][j] - prediction_i_j;
 
-    //  Likj - ikj sums all j
-    //  Rkji - kji sums all i
-
-    // for each one of the non zero elements
-    for (int nonZeroElementNumber = 0; nonZeroElementNumber < numberOfNonZeroElements; nonZeroElementNumber++) {
-        int user = nonZeroElementIndexes[nonZeroElementNumber][0];
-        int item = nonZeroElementIndexes[nonZeroElementNumber][1];
-
-        // for each one of the features
-        for (int feature = 0; feature < numberOfFeatures; feature++) {
-            // consider the sum as zero
-            sumForAllUsersOfTheDerivativesWithRespectToR = 0;
-            sumForAllItemsOfTheDerivativesWithRespectToL = 0;
-
-            // get the sum for all users of the item, for that feature
-            for (int userNumber = 0; userNumber < numberOfUsers; userNumber++)
-                sumForAllUsersOfTheDerivativesWithRespectToR +=
-                        2 * (A[userNumber][item] - B[userNumber][item]) * (-1 * StoreL[userNumber][feature]);
-
-            // get the sum for all items of the user, for that feature
-            for (int itemNumber = 0; itemNumber < numberOfItems; itemNumber++)
-                sumForAllItemsOfTheDerivativesWithRespectToL +=
-                        2 * (A[user][itemNumber] - B[user][itemNumber]) * (-1 * StoreR[feature][itemNumber]);
-
-            // make the adjustment
-            L[user][feature] -= convergenceCoefficient * sumForAllItemsOfTheDerivativesWithRespectToL;
-            R[feature][item] -= convergenceCoefficient * sumForAllUsersOfTheDerivativesWithRespectToR;
+                for (int k = 0; k < numberOfFeatures; k++) {
+                    L[i][k] = L[i][k] + convergenceCoefficient * (2 * delta_i_j * StoreR[k][j]);
+                    R[k][j] =  R[k][j] + convergenceCoefficient * (2 * delta_i_j * StoreL[i][k]);
+                }
+            }
         }
     }
 
