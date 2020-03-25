@@ -8,6 +8,8 @@
 #include "src/updateLR.h"
 
 int main(int argc, char *argv[]) {
+    time_t begin = clock();
+
     int numberOfIterations;
     int numberOfLatentFeatures;
     double convergenceCoefficient;
@@ -20,17 +22,24 @@ int main(int argc, char *argv[]) {
     std::vector<std::vector<double>> L;
     std::vector<std::vector<double>> R;
     std::vector<std::vector<double>> B;
+    std::vector<std::vector<int>> nonZeroElementIndexes;
+
+    //  Likj - ikj sums all j
+    //  Rkji - kji sums all i
+
+    // get an array of indexes representing non zero elements
+
 
     std::string matrixFileName = "./instances/test.mats";
     std::string inputFileName = argv[1];
 
-    readInput(inputFileName, A,
+    readInput(inputFileName, A, nonZeroElementIndexes,
               numberOfIterations, numberOfLatentFeatures, convergenceCoefficient,
               numberOfUsers, numberOfItems, numberOfNonZeroElements);
+
     initialB(B, numberOfUsers, numberOfItems);
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfLatentFeatures);
     updateB(B, L, R, numberOfUsers, numberOfItems, numberOfLatentFeatures);
-
 
     writeInitialMatrices(matrixFileName, A, L, R, B);
 
@@ -42,12 +51,17 @@ int main(int argc, char *argv[]) {
         StoreL = L;
         StoreR = R;
 
-        updateLR(A, B, L, R, StoreL, StoreR, numberOfUsers, numberOfItems, numberOfLatentFeatures,
+        updateLR(A, nonZeroElementIndexes, B, L, R, StoreL, StoreR, numberOfUsers, numberOfItems,
+                 numberOfLatentFeatures,
                  numberOfNonZeroElements,
                  convergenceCoefficient);
         updateB(B, L, R, numberOfUsers, numberOfItems, numberOfLatentFeatures);
         writeMatrices(matrixFileName, L, R, B, iteration);
+
     }
+
+    time_t end = clock();
+    printf("End: %.3f\n", double((end - begin)) / CLOCKS_PER_SEC);
 
     return 0;
 }

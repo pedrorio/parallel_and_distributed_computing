@@ -8,7 +8,7 @@
 #include <vector>
 
 void
-updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<double>> &B, std::vector<std::vector<double>> &L,
+updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<int>> &nonZeroElementIndexes, std::vector<std::vector<double>> &B, std::vector<std::vector<double>> &L,
          std::vector<std::vector<double>> &R, std::vector<std::vector<double>> &StoreL,
          std::vector<std::vector<double>> &StoreR,
          int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, int &numberOfNonZeroElements,

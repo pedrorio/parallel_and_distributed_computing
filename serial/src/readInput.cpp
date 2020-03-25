@@ -5,7 +5,8 @@
 #include "readInput.h"
 
 
-void readInput(std::string inputFileName, std::vector<std::vector<double>> &A, int &numberOfIterations,
+void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
+               std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
                int &numberOfLatentFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
                int &numberOfNonZeroElements) {
     std::ifstream inFile(inputFileName);
@@ -57,5 +58,13 @@ void readInput(std::string inputFileName, std::vector<std::vector<double>> &A, i
             lineNumber++;
         }
         inFile.close();
+
+        for (int user = 0; user < numberOfUsers; user++) {
+            for (int item = 0; item < numberOfItems; item++) {
+                if (A[user][item] != 0) {
+                    nonZeroElementIndexes.push_back({user, item});
+                }
+            }
+        }
     }
 }

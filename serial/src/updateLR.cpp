@@ -6,7 +6,8 @@
 #include "updateLR.h"
 
 void
-updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<double>> &B, std::vector<std::vector<double>> &L,
+updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<int>> &nonZeroElementIndexes,
+         std::vector<std::vector<double>> &B, std::vector<std::vector<double>> &L,
          std::vector<std::vector<double>> &R, std::vector<std::vector<double>> &StoreL,
          std::vector<std::vector<double>> &StoreR,
          int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, int &numberOfNonZeroElements,
@@ -18,8 +19,8 @@ updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<double>> &
 //     j => item
 //     k => latentFeature
 
-    double itemSum = 0;
-    double userSum = 0;
+    double sumForAllUsersOfTheDerivativesWithRespectToR;
+    double sumForAllItemsOfTheDerivativesWithRespectToL;
 
     //     compute dDij/dLikj = Likj = 2(Aij - Bij) * -1 * Rkj and sum for all j
     //     Dij = SDij - a * dDij/dRkji
@@ -29,43 +30,34 @@ updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<double>> &
     L = StoreL;
     R = StoreR;
 
-    std::vector<std::vector<int>> nonZeroElementIndexes;
-    std::vector<int> items;
-
     //  Likj - ikj sums all j
     //  Rkji - kji sums all i
 
+    // for each one of the non zero elements
+    for (int nonZeroElementNumber = 0; nonZeroElementNumber < numberOfNonZeroElements; nonZeroElementNumber++) {
+        int user = nonZeroElementIndexes[nonZeroElementNumber][0];
+        int item = nonZeroElementIndexes[nonZeroElementNumber][1];
 
-    for (int user = 0; user < numberOfUsers; user++) {
-        for (int item = 0; item < numberOfItems; item++) {
-            if (A[user][item] != 0) {
-                nonZeroElementIndexes.push_back({user, item});
-            }
+        // for each one of the features
+        for (int feature = 0; feature < numberOfFeatures; feature++) {
+            // consider the sum as zero
+            sumForAllUsersOfTheDerivativesWithRespectToR = 0;
+            sumForAllItemsOfTheDerivativesWithRespectToL = 0;
+
+            // get the sum for all users of the item, for that feature
+            for (int userNumber = 0; userNumber < numberOfUsers; userNumber++)
+                sumForAllUsersOfTheDerivativesWithRespectToR +=
+                        2 * (A[userNumber][item] - B[userNumber][item]) * (-1 * StoreL[userNumber][feature]);
+
+            // get the sum for all items of the user, for that feature
+            for (int itemNumber = 0; itemNumber < numberOfItems; itemNumber++)
+                sumForAllItemsOfTheDerivativesWithRespectToL +=
+                        2 * (A[user][itemNumber] - B[user][itemNumber]) * (-1 * StoreR[feature][itemNumber]);
+
+            // make the adjustment
+            L[user][feature] -= convergenceCoefficient * sumForAllItemsOfTheDerivativesWithRespectToL;
+            R[feature][item] -= convergenceCoefficient * sumForAllUsersOfTheDerivativesWithRespectToR;
         }
     }
 
-    for (auto &nonZeroElementIndex: nonZeroElementIndexes) {
-        for (int feature = 0; feature < numberOfFeatures; feature++) {
-            int user = nonZeroElementIndex[0];
-            int item = nonZeroElementIndex[1];
-
-            for (int userNumber = 0; userNumber < numberOfUsers; userNumber++) {
-                userSum -= 2 * (A[userNumber][item] - B[userNumber][item]) * StoreL[userNumber][feature];
-            }
-
-            for (int itemNumber = 0; itemNumber < numberOfItems; itemNumber++) {
-                itemSum -= 2 * (A[user][itemNumber] - B[user][itemNumber]) * StoreR[feature][itemNumber];
-            }
-
-//            userSum -= 2 * (A[user][item] - B[user][item]) * StoreL[user][feature];
-//            itemSum -= 2 * (A[user][item] - B[user][item]) * StoreR[feature][item];
-        }
-
-        for (int feature = 0; feature < numberOfFeatures; feature++) {
-            int user = nonZeroElementIndex[0];
-            int item = nonZeroElementIndex[1];
-            L[user][feature] = StoreL[user][feature] - convergenceCoefficient * itemSum;
-            R[feature][item] = StoreR[feature][item] - convergenceCoefficient * userSum;
-        }
-    }
 };
