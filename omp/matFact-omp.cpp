@@ -5,9 +5,12 @@
 #include "src/initialLR.h"
 #include "src/updateLR.h"
 #include "src/filterFinalMatrix.h"
+#include <omp.h>
 
 int main(int argc, char *argv[]) {
     time_t begin = clock();
+
+//    std::cout << omp_get_max_threads() << std::endl;
 
     int numberOfIterations;
     int numberOfFeatures;

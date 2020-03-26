@@ -1,4 +1,6 @@
-**/omp
+!**/omp
+**/omp/matFact-omp
+**/omp/test/unitTests
 **/mpi
 **/*.cbp
 **/Makefile
