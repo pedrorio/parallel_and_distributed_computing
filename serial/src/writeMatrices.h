@@ -10,7 +10,8 @@
 #include <vector>
 
 void writeMatrices(std::string &matrixFileName,
-                   std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R, int &iterationNumber);
+                   std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R, int &iterationNumber,
+                   int numberOfUsers, int numberOfItems, int numberOfFeatures);
 
 
 #endif //SERIAL_WRITEMATRICES_H

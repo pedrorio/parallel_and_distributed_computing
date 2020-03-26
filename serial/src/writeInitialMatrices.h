@@ -10,7 +10,8 @@
 #include <vector>
 
 void writeInitialMatrices(std::string &matrixFileName, std::vector<std::vector<double>> &A,
-                          std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R);
+                          std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R, int numberOfUsers,
+                          int numberOfItems, int numberOfFeatures);
 
 
 #endif //SERIAL_WRITEINITIALMATRICES_H

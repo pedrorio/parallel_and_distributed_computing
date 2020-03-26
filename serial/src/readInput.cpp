@@ -40,12 +40,12 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
                     break;
                 }
                 default: {
-                    for (int i = 0; i < numberOfUsers; i++) {
-                        for (int j = 0; j < numberOfItems; j++) {
-                            std::cout << A[i][j] << " ";
-                        }
-                        std::cout << std::endl;
-                    }
+//                    for (int i = 0; i < numberOfUsers; i++) {
+//                        for (int j = 0; j < numberOfItems; j++) {
+//                            std::cout << A[i][j] << " ";
+//                        }
+//                        std::cout << std::endl;
+//                    }
                     std::vector<std::string> results(std::istream_iterator<std::string>{iss},
                                                      std::istream_iterator<std::string>());
                     int userIndex = std::stoi(results[0]);
