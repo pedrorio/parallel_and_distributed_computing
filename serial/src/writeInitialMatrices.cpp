@@ -50,7 +50,7 @@ void writeInitialMatrices(std::string &matrixFileName, std::vector<std::vector<d
 
     for (int i = 0; i < numberOfUsers; i++) {
         for (int j = 0; j < numberOfItems; j++) {
-            for (int k = 0; k <numberOfFeatures; k++) {
+            for (int k = 0; k < numberOfFeatures; k++) {
                 B[i][j] += L[i][k] * R[k][j];
             }
             matFile << std::fixed << std::setprecision(6) << B[i][j] << " ";

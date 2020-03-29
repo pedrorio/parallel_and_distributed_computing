@@ -14,7 +14,7 @@ void filterFinalMatrix(std::vector<std::vector<double>> &A, std::vector<std::vec
     std::vector<int> BV;
 
     B = computeB(L, R,
-             numberOfUsers, numberOfItems, numberOfFeatures);
+                 numberOfUsers, numberOfItems, numberOfFeatures);
 
     for (int i = 0; i < numberOfUsers; i++) {
         for (int j = 0; j < numberOfItems; j++) {

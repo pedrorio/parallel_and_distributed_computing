@@ -1,1 +1,96 @@
-TBI
+% Preamble
+\documentclass[twocolumn]{article}
+
+% Packages
+\usepackage[T1]{fontenc} % Used
+\usepackage[utf8]{inputenc} % Used
+\usepackage{indentfirst} % Used
+\usepackage{lipsum} % Used
+\usepackage{amsmath} % Used
+\usepackage[margin=1in]{geometry}  % Used
+\usepackage[font=small,labelfont=bf]{caption} % Used
+\usepackage{hyperref} % Used
+\usepackage{fancyhdr} % Used
+\usepackage{tikz} % Used
+\usetikzlibrary{graphs} % Used
+\usetikzlibrary{chains} % Used
+\usetikzlibrary{positioning} % Used
+\usetikzlibrary{quotes} % Used
+
+\usepackage{subcaption}
+\usepackage{newfloat}
+
+\usepackage{booktabs} % Used
+\usepackage{tikz-network} % Used
+
+\usepackage{multirow}
+\usepackage{graphicx}
+
+\pagestyle{fancy}
+
+\fancyhead{}
+\lhead{
+    \includegraphics[scale=0.13]{images/logo.png}
+}
+\rhead{
+    Distributed and Parallel Computing \\
+    2019/2020
+    \footnotesize
+}
+
+\fancyfoot[C]{\thepage}
+
+\date{}
+
+\title{
+    \includegraphics[scale=0.2]{images/logo.png}\\
+    \vskip 0.5em
+    \Huge Distributed and Parallel Computing\\
+    \LARGE OpenMP Report\\
+}
+
+\author{
+    Pedro Rio\\
+    \textit{MSc Data Science and Engineering}\\
+    \textit{Instituto Superior Técnico}\\
+    \textit{97241}
+    \and
+    Sebastião Maia Serqueira\\
+    \textit{MSc Data Science and Engineering}\\
+    \textit{Instituto Superior Técnico}\\
+    \textit{97108}\\
+    \and
+    Eduardo Machado\\
+    \textit{MSc Data Science and Engineering}\\
+    \textit{Instituto Superior Técnico}\\
+    \textit{97133}
+}
+
+% Document
+\begin{document}
+    \maketitle
+
+    \section{Intructions}\label{sec:intructions}
+    You must eventually submit the sequential and both parallel versions of your program (please use the
+    filenames indicated above), and a table with the times to run the parallel versions on input data that
+    will be made available (for 1, 2, 4 and 8 parallel tasks for both OpenMP and MPI, and additionally
+    16, 32 and 64 for MPI).
+
+    You must also submit a short report about the results (2 pages) that discusses:
+    \begin{itemize}
+        \item the approach used for parallelization
+        \item what decomposition was used
+        \item what were the synchronization concerns and why
+        \item how was load balancing addressed
+        \item what are the performance results, and are they what you expected
+    \end{itemize}
+
+    Both the code and the report will be uploaded to the Fenix
+    system in a zip file.
+    Name these files as g<n>omp.zip and g<n>mpi.zip, where <n> is your
+    group number.
+
+    \cleardoublepage~\nocite{*}
+    \bibliography{main}
+    \bibliographystyle{unsrt}
+\end{document}

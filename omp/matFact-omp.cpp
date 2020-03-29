@@ -1,16 +1,16 @@
 #include <vector>
+#include <omp.h>
 #include "src/readInput.h"
 #include "src/writeInitialMatrices.h"
 #include "src/writeMatrices.h"
 #include "src/initialLR.h"
 #include "src/updateLR.h"
 #include "src/filterFinalMatrix.h"
-#include <omp.h>
 
 int main(int argc, char *argv[]) {
     time_t begin = clock();
 
-//    std::cout << omp_get_max_threads() << std::endl;
+    std::cout << omp_get_max_threads() << std::endl;
 
     int numberOfIterations;
     int numberOfFeatures;
@@ -20,12 +20,21 @@ int main(int argc, char *argv[]) {
     int numberOfItems;
     int numberOfNonZeroElements;
 
+    int i, j, k;
+    double prediction_i_j;
+    double delta_i_j;
+    double L_ik;
+    double R_kj;
+    double ij_sum;
+
     std::vector<std::vector<double>> A;
     std::vector<std::vector<double>> L;
     std::vector<std::vector<double>> R;
     std::vector<std::vector<int>> nonZeroElementIndexes;
+    std::vector<std::vector<double>> StoreL;
+    std::vector<std::vector<double>> StoreR;
 
-//    std::string matrixFileName = "./instances/test.mats";
+
     std::string inputFileName = argv[1];
 
     readInput(inputFileName, A, nonZeroElementIndexes,
@@ -33,11 +42,6 @@ int main(int argc, char *argv[]) {
               numberOfUsers, numberOfItems, numberOfNonZeroElements);
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
-
-//    writeInitialMatrices(matrixFileName, A, L, R, numberOfUsers, numberOfItems, numberOfFeatures);
-
-    std::vector<std::vector<double>> StoreL;
-    std::vector<std::vector<double>> StoreR;
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
         StoreL = L;
@@ -49,13 +53,11 @@ int main(int argc, char *argv[]) {
                  numberOfNonZeroElements,
                  convergenceCoefficient);
 
-//        writeMatrices(matrixFileName, L, R, iteration, numberOfUsers, numberOfItems, numberOfFeatures);
     }
 
     filterFinalMatrix(A, nonZeroElementIndexes,
                       L, R,
                       numberOfUsers, numberOfItems, numberOfFeatures);
-
 
     time_t end = clock();
     printf("End: %.3f\n", double((end - begin)) / CLOCKS_PER_SEC);
