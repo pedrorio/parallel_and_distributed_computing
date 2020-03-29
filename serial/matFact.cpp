@@ -1,13 +1,15 @@
 #include <vector>
+#include <omp.h>
 #include "src/readInput.h"
 #include "src/writeInitialMatrices.h"
 #include "src/writeMatrices.h"
 #include "src/initialLR.h"
 #include "src/updateLR.h"
 #include "src/filterFinalMatrix.h"
+#include "src/verifyResult.h"
 
 int main(int argc, char *argv[]) {
-    time_t begin = clock();
+    time_t begin = omp_get_wtime();
 
     int numberOfIterations;
     int numberOfFeatures;
@@ -40,6 +42,10 @@ int main(int argc, char *argv[]) {
         StoreL = L;
         StoreR = R;
 
+//        if (iteration % 10 == 0) {
+            std::cout << "iteration: " << iteration << std::endl;
+//        }
+
         updateLR(A, nonZeroElementIndexes,
                  L, R, StoreL, StoreR,
                  numberOfUsers, numberOfItems, numberOfFeatures,
@@ -49,13 +55,17 @@ int main(int argc, char *argv[]) {
 //        writeMatrices(matrixFileName, L, R, iteration, numberOfUsers, numberOfItems, numberOfFeatures);
     }
 
+    std::vector<int> BV;
     filterFinalMatrix(A, nonZeroElementIndexes,
                       L, R,
-                      numberOfUsers, numberOfItems, numberOfFeatures);
+                      numberOfUsers, numberOfItems, numberOfFeatures, BV);
 
 
-    time_t end = clock();
-    printf("End: %.3f\n", double((end - begin)) / CLOCKS_PER_SEC);
+    time_t end = omp_get_wtime();
+    printf("End: %.3f\n", double((end - begin)));
+
+    std::string outputFileName = inputFileName.substr (0,inputFileName.length() - 2).append("out");
+    verifyResult(outputFileName, BV);
 
     return 0;
 }

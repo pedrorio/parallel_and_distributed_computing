@@ -6,11 +6,11 @@
 #include "src/initialLR.h"
 #include "src/updateLR.h"
 #include "src/filterFinalMatrix.h"
+#include "src/verifyResult.h"
 
 int main(int argc, char *argv[]) {
-    time_t begin = clock();
+    time_t begin = omp_get_wtime();
 
-    std::cout << omp_get_max_threads() << std::endl;
 
     int numberOfIterations;
     int numberOfFeatures;
@@ -20,17 +20,14 @@ int main(int argc, char *argv[]) {
     int numberOfItems;
     int numberOfNonZeroElements;
 
-    int i, j, k;
-    double prediction_i_j;
-    double delta_i_j;
-    double L_ik;
-    double R_kj;
-    double ij_sum;
-
     std::vector<std::vector<double>> A;
     std::vector<std::vector<double>> L;
     std::vector<std::vector<double>> R;
     std::vector<std::vector<int>> nonZeroElementIndexes;
+
+    std::vector<int> nonZeroUserIndexes;
+    std::vector<int> nonZeroItemIndexes;
+
     std::vector<std::vector<double>> StoreL;
     std::vector<std::vector<double>> StoreR;
 
@@ -39,28 +36,42 @@ int main(int argc, char *argv[]) {
 
     readInput(inputFileName, A, nonZeroElementIndexes,
               numberOfIterations, numberOfFeatures, convergenceCoefficient,
-              numberOfUsers, numberOfItems, numberOfNonZeroElements);
+              numberOfUsers, numberOfItems, numberOfNonZeroElements, nonZeroUserIndexes, nonZeroItemIndexes);
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
-    for (int iteration = 0; iteration < numberOfIterations; iteration++) {
-        StoreL = L;
-        StoreR = R;
 
+//#pragma omp parallel for private(StoreL, StoreR) default(none)
+#pragma omp parallel for private(StoreL, StoreR)
+    for (int iteration = 0; iteration < numberOfIterations; iteration++) {
+#pragma omp critical
+        StoreL = L;
+#pragma omp critical
+        StoreR = R;
+//    };
+
+        if (iteration % 10 == 0) {
+            std::cout << "iteration: " << iteration << std::endl;
+        }
         updateLR(A, nonZeroElementIndexes,
                  L, R, StoreL, StoreR,
                  numberOfUsers, numberOfItems, numberOfFeatures,
                  numberOfNonZeroElements,
                  convergenceCoefficient);
-
     }
 
+
+    std::vector<int> BV;
     filterFinalMatrix(A, nonZeroElementIndexes,
                       L, R,
-                      numberOfUsers, numberOfItems, numberOfFeatures);
+                      numberOfUsers, numberOfItems, numberOfFeatures, BV);
 
-    time_t end = clock();
-    printf("End: %.3f\n", double((end - begin)) / CLOCKS_PER_SEC);
+
+    time_t end = omp_get_wtime();
+    printf("End: %.3f\n", double(end - begin));
+
+    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
+    verifyResult(outputFileName, BV);
 
     return 0;
 }

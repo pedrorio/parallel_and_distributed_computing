@@ -15,7 +15,10 @@ add_executable(
         src/writeMatrices.cpp src/writeMatrices.h
         src/initialLR.cpp src/initialLR.h
         src/updateLR.cpp src/updateLR.h
-        src/filterFinalMatrix.cpp src/filterFinalMatrix.h src/computeB.cpp src/computeB.h)
+        src/filterFinalMatrix.cpp src/filterFinalMatrix.h
+        src/computeB.cpp src/computeB.h
+        src/verifyResult.cpp src/verifyResult.h
+)
 
 find_package(OpenMP REQUIRED)
 target_link_libraries(matFact-omp PRIVATE OpenMP::OpenMP_CXX)

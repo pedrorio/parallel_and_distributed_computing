@@ -8,7 +8,8 @@
 void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
                int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
-               int &numberOfNonZeroElements) {
+               int &numberOfNonZeroElements, std::vector<int> &nonZeroUserIndexes,
+               std::vector<int> &nonZeroItemIndexes) {
     std::ifstream inFile(inputFileName);
     if (inFile.is_open()) {
         int lineNumber = 1;
@@ -34,18 +35,16 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
                     numberOfUsers = std::stoi(results[0]);
                     numberOfItems = std::stoi(results[1]);
                     numberOfNonZeroElements = std::stoi(results[2]);
+
+//                    std::vector<std::vector<double>> A2(numberOfUsers, std::vector<double>(numberOfItems, 0));
+//                    A = A2;
+
                     A.resize(numberOfUsers);
                     for (int i = 0; i < numberOfUsers; i++)
                         A[i].resize(numberOfItems, 0);
                     break;
                 }
                 default: {
-//                    for (int i = 0; i < numberOfUsers; i++) {
-//                        for (int j = 0; j < numberOfItems; j++) {
-//                            std::cout << A[i][j] << " ";
-//                        }
-//                        std::cout << std::endl;
-//                    }
                     std::vector<std::string> results(std::istream_iterator<std::string>{iss},
                                                      std::istream_iterator<std::string>());
                     int userIndex = std::stoi(results[0]);
@@ -59,10 +58,14 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
         }
         inFile.close();
 
+        // dimentions
+        // initialisation
         for (int user = 0; user < numberOfUsers; user++) {
             for (int item = 0; item < numberOfItems; item++) {
                 if (A[user][item] != 0) {
                     nonZeroElementIndexes.push_back({user, item});
+                    nonZeroUserIndexes.push_back(user);
+                    nonZeroItemIndexes.push_back(item);
                 }
             }
         }

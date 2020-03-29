@@ -8,13 +8,11 @@
 
 void filterFinalMatrix(std::vector<std::vector<double>> &A, std::vector<std::vector<int>> &nonZeroElementIndexes,
                        std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
-                       int &numberOfUsers, int &numberOfItems, int &numberOfFeatures) {
+                       int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, std::vector<int> &BV) {
 
     std::vector<std::vector<double>> B(numberOfUsers, std::vector<double>(numberOfItems));
-    std::vector<int> BV;
 
-    B = computeB(L, R,
-             numberOfUsers, numberOfItems, numberOfFeatures);
+    B = computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
     for (int i = 0; i < numberOfUsers; i++) {
         for (int j = 0; j < numberOfItems; j++) {
