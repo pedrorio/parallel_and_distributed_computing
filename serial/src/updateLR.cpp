@@ -11,24 +11,27 @@ void updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<int>>
               int &numberOfNonZeroElements,
               double &convergenceCoefficient) {
 
-    // optimised
-    double prediction_i_j;
+    std::vector<double> prediction(nonZeroElementIndexes.size(), 0);
+    std::vector<double> delta(nonZeroElementIndexes.size(), 0);
 
-    for (int i = 0; i < numberOfUsers; i++) {
-        for (int j = 0; j < numberOfItems; j++) {
-            if (A[i][j] > 0) {
+    int l, k;
 
-                prediction_i_j = 0;
-                for (int k = 0; k < numberOfFeatures; k++) {
-                    prediction_i_j += L[i][k] * R[k][j];
-                }
-                double delta_i_j = A[i][j] - prediction_i_j;
+    for (int l = 0; l < numberOfNonZeroElements; l++) {
+        for (int k = 0; k < numberOfFeatures; k++) {
+            prediction[l] += L[nonZeroElementIndexes[l][0]][k] * R[k][nonZeroElementIndexes[l][1]];
+        }
+    }
 
-                for (int k = 0; k < numberOfFeatures; k++) {
-                    L[i][k] = L[i][k] + convergenceCoefficient * (2 * delta_i_j * StoreR[k][j]);
-                    R[k][j] = R[k][j] + convergenceCoefficient * (2 * delta_i_j * StoreL[i][k]);
-                }
-            }
+    for (int l = 0; l < numberOfNonZeroElements; l++) {
+        delta[l] = A[nonZeroElementIndexes[l][0]][nonZeroElementIndexes[l][1]] - prediction[l];
+    }
+
+    for (int l = 0; l < numberOfNonZeroElements; l++) {
+        for (int k = 0; k < numberOfFeatures; k++) {
+            L[nonZeroElementIndexes[l][0]][k] +=
+                    convergenceCoefficient * (2 * delta[l] * StoreR[k][nonZeroElementIndexes[l][1]]);
+            R[k][nonZeroElementIndexes[l][1]] +=
+                    convergenceCoefficient * (2 * delta[l] * StoreL[nonZeroElementIndexes[l][0]][k]);
         }
     }
 

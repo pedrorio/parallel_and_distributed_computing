@@ -7,6 +7,8 @@ set(ENV{LDFLAGS} "-L/usr/local/opt/llvm/lib")
 set(ENV{CPPFLAGS} "-I/usr/local/opt/llvm/include")
 
 project(omp CXX)
+set(CMAKE_CXX_STANDARD 11)
+
 add_executable(
         matFact-omp
         matFact-omp.cpp

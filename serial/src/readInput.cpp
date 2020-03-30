@@ -34,18 +34,13 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
                     numberOfUsers = std::stoi(results[0]);
                     numberOfItems = std::stoi(results[1]);
                     numberOfNonZeroElements = std::stoi(results[2]);
+
                     A.resize(numberOfUsers);
                     for (int i = 0; i < numberOfUsers; i++)
                         A[i].resize(numberOfItems, 0);
                     break;
                 }
                 default: {
-//                    for (int i = 0; i < numberOfUsers; i++) {
-//                        for (int j = 0; j < numberOfItems; j++) {
-//                            std::cout << A[i][j] << " ";
-//                        }
-//                        std::cout << std::endl;
-//                    }
                     std::vector<std::string> results(std::istream_iterator<std::string>{iss},
                                                      std::istream_iterator<std::string>());
                     int userIndex = std::stoi(results[0]);

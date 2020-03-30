@@ -36,9 +36,6 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
                     numberOfItems = std::stoi(results[1]);
                     numberOfNonZeroElements = std::stoi(results[2]);
 
-//                    std::vector<std::vector<double>> A2(numberOfUsers, std::vector<double>(numberOfItems, 0));
-//                    A = A2;
-
                     A.resize(numberOfUsers);
                     for (int i = 0; i < numberOfUsers; i++)
                         A[i].resize(numberOfItems, 0);
@@ -64,8 +61,8 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
             for (int item = 0; item < numberOfItems; item++) {
                 if (A[user][item] != 0) {
                     nonZeroElementIndexes.push_back({user, item});
-                    nonZeroUserIndexes.push_back(user);
-                    nonZeroItemIndexes.push_back(item);
+//                    nonZeroUserIndexes.push_back(user);
+//                    nonZeroItemIndexes.push_back(item);
                 }
             }
         }

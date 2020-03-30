@@ -11,7 +11,6 @@
 int main(int argc, char *argv[]) {
     time_t begin = omp_get_wtime();
 
-
     int numberOfIterations;
     int numberOfFeatures;
     double convergenceCoefficient;
@@ -41,18 +40,28 @@ int main(int argc, char *argv[]) {
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
 
-//#pragma omp parallel for private(StoreL, StoreR) default(none)
-#pragma omp parallel for private(StoreL, StoreR)
+//    #pragma omp parallel for private(StoreL, StoreR) shared(A, nonZeroElementIndexes, L, R) default(none)
+//#pragma omp parallel for private(StoreL, StoreR)
+//    #pragma omp parallel default(none) shared(convergenceCoefficient, numberOfUsers, numberOfItems, numberOfNonZeroElements, A, StoreR, StoreL, numberOfIterations, L, R, numberOfFeatures, nonZeroElementIndexes)
+//    #pragma omp single
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
-#pragma omp critical
-        StoreL = L;
-#pragma omp critical
-        StoreR = R;
-//    };
 
-        if (iteration % 10 == 0) {
+//#pragma omp task depend(inout:iteration) default(none) shared(StoreL, StoreR, L, R)
+//        {
+
+//        #pragma omp critical
+        StoreL = L;
+//        #pragma omp critical
+        StoreR = R;
+//    }
+
             std::cout << "iteration: " << iteration << std::endl;
-        }
+
+        //    };
+
+//        if (iteration % 10 == 0) {
+//        }
+//#pragma omp task depend(inout:iteration) default(none) shared(convergenceCoefficient, numberOfUsers, numberOfItems, numberOfNonZeroElements, A, StoreR, StoreL, numberOfIterations, L, R, numberOfFeatures, nonZeroElementIndexes)
         updateLR(A, nonZeroElementIndexes,
                  L, R, StoreL, StoreR,
                  numberOfUsers, numberOfItems, numberOfFeatures,
@@ -68,10 +77,11 @@ int main(int argc, char *argv[]) {
 
 
     time_t end = omp_get_wtime();
-    printf("End: %.3f\n", double(end - begin));
 
     std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
     verifyResult(outputFileName, BV);
+
+    printf("End: %.3f\n", double(end - begin));
 
     return 0;
 }

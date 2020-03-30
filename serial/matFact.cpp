@@ -24,7 +24,6 @@ int main(int argc, char *argv[]) {
     std::vector<std::vector<double>> R;
     std::vector<std::vector<int>> nonZeroElementIndexes;
 
-//    std::string matrixFileName = "./instances/test.mats";
     std::string inputFileName = argv[1];
 
     readInput(inputFileName, A, nonZeroElementIndexes,
@@ -62,10 +61,11 @@ int main(int argc, char *argv[]) {
 
 
     time_t end = omp_get_wtime();
-    printf("End: %.3f\n", double((end - begin)));
 
     std::string outputFileName = inputFileName.substr (0,inputFileName.length() - 2).append("out");
     verifyResult(outputFileName, BV);
+
+    printf("End: %.3f\n", double((end - begin)));
 
     return 0;
 }
