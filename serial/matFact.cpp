@@ -30,7 +30,13 @@ int main(int argc, char *argv[]) {
               numberOfIterations, numberOfFeatures, convergenceCoefficient,
               numberOfUsers, numberOfItems, numberOfNonZeroElements);
 
+    time_t read_input = omp_get_wtime();
+    printf("read_input: %.3f\n", double(read_input - begin));
+
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
+
+    time_t initial_l_r = omp_get_wtime();
+    printf("initial_l_r: %.3f\n", double(initial_l_r - read_input));
 
 //    writeInitialMatrices(matrixFileName, A, L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
@@ -42,7 +48,7 @@ int main(int argc, char *argv[]) {
         StoreR = R;
 
 //        if (iteration % 10 == 0) {
-            std::cout << "iteration: " << iteration << std::endl;
+//            std::cout << "iteration: " << iteration << std::endl;
 //        }
 
         updateLR(A, nonZeroElementIndexes,
@@ -54,6 +60,8 @@ int main(int argc, char *argv[]) {
 //        writeMatrices(matrixFileName, L, R, iteration, numberOfUsers, numberOfItems, numberOfFeatures);
     }
 
+    time_t final_filtering = omp_get_wtime();
+
     std::vector<int> BV;
     filterFinalMatrix(A, nonZeroElementIndexes,
                       L, R,
@@ -61,11 +69,12 @@ int main(int argc, char *argv[]) {
 
 
     time_t end = omp_get_wtime();
+    printf("final_filtering: %.3f\n", double(end - final_filtering));
 
     std::string outputFileName = inputFileName.substr (0,inputFileName.length() - 2).append("out");
     verifyResult(outputFileName, BV);
 
-    printf("End: %.3f\n", double((end - begin)));
+    printf("total: %.3f\n", double(end - begin));
 
     return 0;
 }

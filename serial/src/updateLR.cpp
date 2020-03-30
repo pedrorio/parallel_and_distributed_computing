@@ -1,7 +1,3 @@
-//
-// Created by Pedro Rio on 19/03/2020.
-//
-
 #include "updateLR.h"
 
 void updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<int>> &nonZeroElementIndexes,

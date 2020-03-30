@@ -14,6 +14,9 @@ void filterFinalMatrix(std::vector<std::vector<double>> &A, std::vector<std::vec
 
     B = computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
+    int i, j;
+    // can loop over nonZeroElementIndexes with the index number and avoid data races
+//#pragma omp parallel for private(i, j) shared(numberOfUsers, numberOfItems, A, B, BV) default(none) schedule(static)
     for (int i = 0; i < numberOfUsers; i++) {
         for (int j = 0; j < numberOfItems; j++) {
             if (A[i][j] != 0) {
