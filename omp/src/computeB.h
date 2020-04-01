@@ -8,7 +8,7 @@
 #include <vector>
 
 std::vector<std::vector<double>> computeB(std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
-                                          int numberOfUsers, int numberOfItems, int numberOfFeatures);
+                                          int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, std::vector<std::vector<double>> &B);
 
 
 #endif //SERIAL_COMPUTEB_H

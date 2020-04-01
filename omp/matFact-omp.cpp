@@ -42,6 +42,8 @@ int main(int argc, char *argv[]) {
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
+    std::vector<std::vector<double>> B(numberOfUsers, std::vector<double>(numberOfItems,0));
+
     std::vector<std::vector<double>> StoreL;
     std::vector<std::vector<double>> StoreR;
 
@@ -63,7 +65,7 @@ int main(int argc, char *argv[]) {
     time_t final_filtering = omp_get_wtime();
 
     std::vector<int> BV(numberOfUsers);
-    filterFinalMatrix(A, nonZeroElementIndexes,
+    filterFinalMatrix(A, B, nonZeroElementIndexes,
                       L, R,
                       numberOfUsers, numberOfItems, numberOfFeatures,
                       numberOfNonZeroElements,

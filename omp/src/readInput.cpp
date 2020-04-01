@@ -1,7 +1,3 @@
-//
-// Created by Pedro Rio on 14/03/2020.
-//
-
 #include "readInput.h"
 
 
@@ -10,61 +6,63 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
                int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
                int &numberOfNonZeroElements, std::vector<int> &nonZeroUserIndexes,
                std::vector<int> &nonZeroItemIndexes) {
-    std::ifstream inFile(inputFileName);
-    if (inFile.is_open()) {
-        int lineNumber = 1;
-        for (std::string line; std::getline(inFile, line);) {
-            std::istringstream iss(line);
 
-            switch (lineNumber) {
-                case 1: {
-                    numberOfIterations = std::stoi(line);
-                    break;
-                }
-                case 2: {
-                    convergenceCoefficient = std::stod(line);
-                    break;
-                }
-                case 3: {
-                    numberOfFeatures = std::stoi(line);
-                    break;
-                }
-                case 4: {
-                    std::vector<std::string> results(std::istream_iterator<std::string>{iss},
-                                                     std::istream_iterator<std::string>());
-                    numberOfUsers = std::stoi(results[0]);
-                    numberOfItems = std::stoi(results[1]);
-                    numberOfNonZeroElements = std::stoi(results[2]);
+    std::vector<std::string> fileCopy;
 
-                    A.resize(numberOfUsers);
-                    for (int i = 0; i < numberOfUsers; i++)
-                        A[i].resize(numberOfItems, 0);
-                    break;
-                }
-                default: {
-                    std::vector<std::string> results(std::istream_iterator<std::string>{iss},
-                                                     std::istream_iterator<std::string>());
-                    int userIndex = std::stoi(results[0]);
-                    int itemIndex = std::stoi(results[1]);
-                    double element = std::stod(results[2]);
-                    A[userIndex][itemIndex] = element;
-                    break;
-                }
+    int i,k, m, numberOfLines;
+    std::string line;
+
+    std::ifstream countFileLines(inputFileName);
+    for (numberOfLines = 0; std::getline(countFileLines, line); numberOfLines++) {
+        fileCopy.push_back(line);
+    };
+    countFileLines.close();
+
+//    #pragma omp parallel for private(k, line) shared(std::cout, A, numberOfLines, fileCopy, numberOfIterations, convergenceCoefficient,numberOfUsers, numberOfItems, numberOfFeatures, numberOfNonZeroElements, nonZeroElementIndexes) default(none)
+    for (int k = 0; k < 4; k++) {
+        line = fileCopy[k];
+        switch (k) {
+            case 0: {
+                numberOfIterations = std::stoi(line);
+                break;
             }
-            lineNumber++;
-        }
-        inFile.close();
+            case 1: {
+                convergenceCoefficient = std::stod(line);
+                break;
+            }
+            case 2: {
+                numberOfFeatures = std::stoi(line);
+                break;
+            }
+            case 3: {
+                std::istringstream iss(line);
 
-        // dimentions
-        // initialisation
-        for (int user = 0; user < numberOfUsers; user++) {
-            for (int item = 0; item < numberOfItems; item++) {
-                if (A[user][item] != 0) {
-                    nonZeroElementIndexes.push_back({user, item});
-//                    nonZeroUserIndexes.push_back(user);
-//                    nonZeroItemIndexes.push_back(item);
-                }
+                std::vector<std::string> results(std::istream_iterator<std::string>{iss},
+                                                 std::istream_iterator<std::string>());
+                numberOfUsers = std::stoi(results[0]);
+                numberOfItems = std::stoi(results[1]);
+                numberOfNonZeroElements = std::stoi(results[2]);
+
+                std::vector<std::vector<int>> StoreNonZeroElementIndexes(numberOfNonZeroElements, std::vector<int>(2));
+                nonZeroElementIndexes = StoreNonZeroElementIndexes;
+
+                std::vector<std::vector<double>> StoreA(numberOfUsers, std::vector<double>(numberOfItems, 0));
+                A = StoreA;
+                break;
             }
         }
+    }
+
+    #pragma omp parallel for private(m, line) shared(A, nonZeroElementIndexes, numberOfLines, fileCopy) default(none)
+    for (int m = 4; m < numberOfLines; m++) {
+        line = fileCopy[m];
+        std::istringstream iss(line);
+        std::vector<std::string> results(std::istream_iterator<std::string>{iss},
+                                         std::istream_iterator<std::string>());
+        int userIndex = std::stoi(results[0]);
+        int itemIndex = std::stoi(results[1]);
+        double element = std::stod(results[2]);
+        A[userIndex][itemIndex] = element;
+        nonZeroElementIndexes[m - 4] = {userIndex, itemIndex};
     }
 }
