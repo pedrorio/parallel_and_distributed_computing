@@ -10,7 +10,7 @@
 
 void filterFinalMatrix(std::vector<std::vector<double>> &A, std::vector<std::vector<int>> &nonZeroElementIndexes,
                        std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
-                       int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, std::vector<int> &BV);
+                       int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, int &numberOfNonZeroElements, std::vector<int> &BV);
 
 
 #endif //SERIAL_FILTERFINALMATRIX_H

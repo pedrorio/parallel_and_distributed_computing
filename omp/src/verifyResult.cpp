@@ -6,12 +6,9 @@
 void verifyResult(std::string &fileName, std::vector<int> &BV) {
     std::vector<int> realValues;
 
-//    std::cout << "Filename is: " << fileName << std::endl;
-
     std::ifstream inFile(fileName);
     int element;
     for (std::string line; std::getline(inFile, line);) {
-//        std::cout << "line is: " << line << std::endl;
         if (line.empty()) {
             continue;
         }

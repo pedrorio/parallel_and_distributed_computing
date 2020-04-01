@@ -1,30 +1,30 @@
-//
-// Created by Pedro Rio on 26/03/2020.
-//
-
 #include <iostream>
 #include "filterFinalMatrix.h"
 #include "computeB.h"
 
 void filterFinalMatrix(std::vector<std::vector<double>> &A, std::vector<std::vector<int>> &nonZeroElementIndexes,
                        std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
-                       int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, std::vector<int> &BV) {
+                       int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, int &numberOfNonZeroElements,
+                       std::vector<int> &BV) {
 
     std::vector<std::vector<double>> B(numberOfUsers, std::vector<double>(numberOfItems));
 
     B = computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
-    int i, j;
-    // can loop over nonZeroElementIndexes with the index number and avoid data races
-//#pragma omp parallel for private(i, j) shared(numberOfUsers, numberOfItems, A, B, BV) default(none) schedule(static)
+    int i, j, l;
+
+    #pragma omp parallel for private(l) shared(numberOfNonZeroElements, nonZeroElementIndexes, B) default(none) schedule(static)
+    for (int l = 0; l < numberOfNonZeroElements; l++) {
+            B[nonZeroElementIndexes[l][0]][nonZeroElementIndexes[l][1]] = 0;
+    }
+
+    #pragma omp parallel for private(i) shared(numberOfUsers, A, B, BV) default(none) schedule(static)
     for (int i = 0; i < numberOfUsers; i++) {
-        for (int j = 0; j < numberOfItems; j++) {
-            if (A[i][j] != 0) {
-                B[i][j] = 0;
-            }
-        }
-        int maxElement = std::distance(B[i].begin(), std::max_element(B[i].begin(), B[i].end()));
-        BV.push_back(maxElement);
-        std::cout << maxElement << std::endl;
+        int maxElementIndex = std::distance(B[i].begin(), std::max_element(B[i].begin(), B[i].end()));
+        BV[i] = maxElementIndex;
+    };
+
+    for (int i = 0; i < numberOfUsers; i++) {
+        std::cout << BV[i] << std::endl;
     };
 };
