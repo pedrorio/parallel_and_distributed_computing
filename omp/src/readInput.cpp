@@ -53,7 +53,7 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
         }
     }
 
-    #pragma omp parallel for private(m, line) shared(A, nonZeroElementIndexes, numberOfLines, fileCopy) default(none)
+    #pragma omp parallel for private(m, line) shared(A, nonZeroElementIndexes, numberOfLines, fileCopy) default(none) schedule(guided)
     for (int m = 4; m < numberOfLines; m++) {
         line = fileCopy[m];
         std::istringstream iss(line);

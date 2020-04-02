@@ -51,15 +51,20 @@ int main(int argc, char *argv[]) {
     printf("initial_l_r: %.6f\n", double(initial_l_r - read_input));
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
-       StoreL = L;
-       StoreR = R;
+        //time_t start_iter = omp_get_wtime();
 
-//        std::cout << "iteration: " << iteration << std::endl;
+        StoreR = R;
+        StoreL = L;
+
+        //std::cout << "iteration: " << iteration << std::endl;
         updateLR(A, nonZeroElementIndexes,
                  L, R, StoreL, StoreR,
                  numberOfUsers, numberOfItems, numberOfFeatures,
                  numberOfNonZeroElements,
                  convergenceCoefficient);
+
+        //time_t finish_iter = omp_get_wtime();
+        //printf("iter: %.6f\n", double(finish_iter - start_iter));
     }
 
     time_t final_filtering = omp_get_wtime();

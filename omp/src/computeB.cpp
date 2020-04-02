@@ -9,7 +9,7 @@ std::vector<std::vector<double>> computeB(std::vector<std::vector<double>> &L, s
 
     int i, j, k;
 
-        #pragma omp for collapse(3) private(i, j, k)
+        #pragma omp for collapse(3) private(i, j, k) schedule(guided)
         for (int i = 0; i < numberOfUsers; i++) {
             for (int j = 0; j < numberOfItems; j++) {
                 for (int k = 0; k < numberOfFeatures; k++) {
