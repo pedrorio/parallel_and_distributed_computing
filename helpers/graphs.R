@@ -2,6 +2,7 @@ library("ggplot2")
 library("stringr")
 
 df <- read.csv("comparison.csv", header = T)
+df$fileName <- sapply(str_split(df$fileName, "/", 3), function(x) (x[3]))
 df$total <- df$readInput +
   df$initialLR +
   df$loop +
@@ -15,11 +16,9 @@ df$program[df$number_of_processors == 2] <- "2 Threads"
 df$program[df$number_of_processors == 4] <- "4 Threads"
 df$program[df$number_of_processors == 8] <- "8 Threads"
 
-# df$speedup <- 1
 for (i in unique(df$fileName)) {
   df$speedup[df$fileName == i] <- df[df$program == "Serial" & df$fileName == i,]$total / df$total[df$fileName == i]
 }
-# df$speedup[is.nan(df$speedup)] <- 1
 df$speedup[df$speedup == 0] <- NaN
 
 ggplot(df, aes(x = program, y = total, color = fileName, group = fileName)) +
@@ -27,13 +26,6 @@ ggplot(df, aes(x = program, y = total, color = fileName, group = fileName)) +
   labs(x="Program", y="Time (s)", title="Total Execution Time")
 ggsave("time.png")
 
-# df$program <- df$program[-1]
-str_split(df$fileName, "/")
-
-str_split(df$fileName, "/")
-
-
-df$fileName <- sapply(strsplit(df$fileName, split="/", fixed=TRUE), function(x) (x[2]))
 df <- df[df$program != "Serial",]
 droplevels(df$program)
 
