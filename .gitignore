@@ -18,3 +18,4 @@ omp/report/*
 !omp/report/main.tex
 !omp/report/main.pdf
 !omp/report/images
+helpers/compare

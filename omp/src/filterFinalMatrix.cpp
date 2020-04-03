@@ -10,7 +10,7 @@ void filterFinalMatrix(std::vector<std::vector<double>> &A, std::vector<std::vec
                        std::vector<int> &BV) {
 
     int i, j, l;
-	#pragma omp parallel shared(numberOfUsers, numberOfItems, numberOfFeatures, A, B, L, R, numberOfNonZeroElements, nonZeroElementIndexes, BV)  default(none) private(i,l,j)
+	#pragma omp parallel shared(numberOfUsers, numberOfItems, numberOfFeatures, A, B, L, R, numberOfNonZeroElements, nonZeroElementIndexes, BV, std::cout)  default(none) private(i,l,j)
     {
         computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures, B);
 
