@@ -11,8 +11,6 @@ add_executable(
         matFact
         matFact.cpp
         src/readInput.cpp src/readInput.h
-        src/writeInitialMatrices.cpp src/writeInitialMatrices.h
-        src/writeMatrices.cpp src/writeMatrices.h
         src/initialLR.cpp src/initialLR.h
         src/updateLR.cpp src/updateLR.h
         src/filterFinalMatrix.cpp src/filterFinalMatrix.h

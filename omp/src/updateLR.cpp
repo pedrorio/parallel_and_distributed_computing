@@ -11,9 +11,9 @@ void updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<int>>
     std::vector<double> delta(nonZeroElementIndexes.size(), 0);
 
     int l, k;
+
     #pragma omp parallel shared(numberOfNonZeroElements, numberOfFeatures, nonZeroElementIndexes, prediction, A, L, R, StoreL, StoreR, convergenceCoefficient, delta) default(none)
     {
-
         #pragma omp for collapse(2) private(l, k) schedule(guided)
         for (int l = 0; l < numberOfNonZeroElements; l++) {
             for (int k = 0; k < numberOfFeatures; k++) {

@@ -1,11 +1,9 @@
 #include "readInput.h"
 
-
 void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
                int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
-               int &numberOfNonZeroElements, std::vector<int> &nonZeroUserIndexes,
-               std::vector<int> &nonZeroItemIndexes) {
+               int &numberOfNonZeroElements) {
 
     std::vector<std::string> fileCopy;
 
@@ -18,7 +16,6 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
     };
     countFileLines.close();
 
-//    #pragma omp parallel for private(k, line) shared(std::cout, A, numberOfLines, fileCopy, numberOfIterations, convergenceCoefficient,numberOfUsers, numberOfItems, numberOfFeatures, numberOfNonZeroElements, nonZeroElementIndexes) default(none)
     for (int k = 0; k < 4; k++) {
         line = fileCopy[k];
         switch (k) {

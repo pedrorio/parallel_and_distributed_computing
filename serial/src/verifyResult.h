@@ -3,6 +3,6 @@
 
 #include <vector>
 
-void verifyResult(std::string &fileName, std::vector<int> &BV);
+int verifyResult(std::string &fileName, std::vector<int> &BV);
 
 #endif //OMP_VERIFYRESULT_H

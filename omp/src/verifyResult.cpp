@@ -1,9 +1,8 @@
 #include <istream>
 #include <fstream>
-#include <iostream>
 #include "verifyResult.h"
 
-void verifyResult(std::string &fileName, std::vector<int> &BV) {
+int verifyResult(std::string &fileName, std::vector<int> &BV) {
     std::vector<int> realValues;
 
     std::ifstream inFile(fileName);
@@ -23,5 +22,5 @@ void verifyResult(std::string &fileName, std::vector<int> &BV) {
             numberOfFalses++;
         };
     }
-    std::cout << numberOfFalses << std::endl;
+    return numberOfFalses;
 };

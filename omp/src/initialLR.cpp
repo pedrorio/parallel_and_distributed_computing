@@ -1,7 +1,3 @@
-//
-// Created by Pedro Rio on 14/03/2020.
-//
-
 #include "initialLR.h"
 
 #define RAND01 ((double)random() / (double)RAND_MAX)

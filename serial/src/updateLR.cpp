@@ -24,11 +24,8 @@ void updateLR(std::vector<std::vector<double>> &A, std::vector<std::vector<int>>
 
     for (int l = 0; l < numberOfNonZeroElements; l++) {
         for (int k = 0; k < numberOfFeatures; k++) {
-            L[nonZeroElementIndexes[l][0]][k] +=
-                    convergenceCoefficient * (2 * delta[l] * StoreR[k][nonZeroElementIndexes[l][1]]);
-            R[k][nonZeroElementIndexes[l][1]] +=
-                    convergenceCoefficient * (2 * delta[l] * StoreL[nonZeroElementIndexes[l][0]][k]);
+            L[nonZeroElementIndexes[l][0]][k] += convergenceCoefficient * (2 * delta[l] * StoreR[k][nonZeroElementIndexes[l][1]]);
+            R[k][nonZeroElementIndexes[l][1]] += convergenceCoefficient * (2 * delta[l] * StoreL[nonZeroElementIndexes[l][0]][k]);
         }
     }
-
 };

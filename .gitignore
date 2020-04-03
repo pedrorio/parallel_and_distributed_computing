@@ -13,3 +13,8 @@
 **/serial/matFact
 **/serial/test/unitTests
 .idea
+omp/report/*
+!omp/report/main.bib
+!omp/report/main.tex
+!omp/report/main.pdf
+!omp/report/images

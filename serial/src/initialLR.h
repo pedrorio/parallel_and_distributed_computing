@@ -1,7 +1,3 @@
-//
-// Created by Pedro Rio on 14/03/2020.
-//
-
 #ifndef SERIAL_INITIALLR_H
 #define SERIAL_INITIALLR_H
 
