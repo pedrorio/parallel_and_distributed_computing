@@ -24,5 +24,5 @@ find_package(OpenMP REQUIRED)
 target_link_libraries(matFact-omp PRIVATE OpenMP::OpenMP_CXX)
 
 
-add_subdirectory(test)
-enable_testing()
+#add_subdirectory(test)
+#enable_testing()

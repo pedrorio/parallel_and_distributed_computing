@@ -6,22 +6,17 @@
 #include <string>
 
 int main(int argc, char *argv[]) {
-    time_t begin = omp_get_wtime();
-
-    std::string inputFileName = argv[1];
-
     std::vector<int> numberOfParallelTasks = {1, 2, 4, 8};
-
     std::vector<std::string> inputFileNames;
-
 
     std::string path("../instances");
     std::string ext(".in");
     for (auto &inputFileName: std::filesystem::recursive_directory_iterator(path)) {
         if (inputFileName.path().extension() == ext) {
-            inputFileNames.push_back(inputFileName.filename());
+            inputFileNames.push_back(inputFileName.path().filename());
         }
     }
+    std::cout << "Got the directories" << std::endl;
 
     std::ofstream logResults("comparison.csv");
     logResults << "fileName, ";
@@ -40,12 +35,21 @@ int main(int argc, char *argv[]) {
     logResults << std::endl;
     logResults.close();
 
+    std::cout << "Wrote the headers" << std::endl;
+
+
     for (auto &inputFileName: inputFileNames) {
-            system("cd ../serial && cmake . && make && ./matFact ../instances/" + inputFileName)
-            for (auto& numberOfTasks: numberOfParallelTasks) {
-                system("cd ../serial && cmake . && make && OMP_NUM_THREADS=" + numberOfTasks +
-                       " ./matFact ../instances/" + inputFileName)
-            }
+        system("cd ../serial && cmake . && make");
+        system("cd ../omp && cmake . && make");
+        std::cout << "Running " <<  inputFileName << std::endl;
+        system(("../serial/matFact ../instances/" + inputFileName).c_str());
+        std::cout << "Run and logged " <<  inputFileName << std::endl;
+        for (auto &numberOfTasks: numberOfParallelTasks) {
+            std::cout << "Running " <<  inputFileName << "for " << numberOfTasks << " parallel tasks" << std::endl;
+            system(("OMP_NUM_THREADS=" + std::to_string(numberOfTasks) +
+                    " ../omp/matFact-omp ../instances/" + inputFileName).c_str());
+            std::cout << "Run and logged " <<  inputFileName << "for " << numberOfTasks << " parallel tasks" << std::endl;
+        }
     }
 
     return 0;

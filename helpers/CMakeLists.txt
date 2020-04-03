@@ -16,6 +16,3 @@ add_executable(
 
 find_package(OpenMP REQUIRED)
 target_link_libraries(compare PRIVATE OpenMP::OpenMP_CXX)
-
-add_subdirectory(test)
-enable_testing()

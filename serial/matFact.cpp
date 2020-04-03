@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 
     time_t end = omp_get_wtime();
 
-    std::ofstream logResults("comparison.csv", std::ios::app);
+    std::ofstream logResults("../helpers/comparison.csv", std::ios::app);
     logResults << inputFileName << ", ";
     logResults << std::getenv("OMP_NUM_THREADS") << ", ";
 
