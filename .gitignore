@@ -1,6 +1,6 @@
-!**/omp
-**/omp/matFact-omp
-**/omp/test/unitTests
+!delivery/g24omp/omp
+delivery/g24omp/omp/matFact-omp
+delivery/g24omp/omp/test/unitTests
 **/mpi
 **/*.cbp
 **/Makefile
@@ -9,9 +9,9 @@
 **/cmake-build-debug
 **/CMakeFiles
 **/Testing
-!**/serial
-**/serial/matFact
-**/serial/test/unitTests
+!delivery/g24omp/serial
+delivery/g24omp/serial/matFact
+delivery/g24omp/serial/test/unitTests
 .idea
 omp/report/*
 !omp/report/main.bib

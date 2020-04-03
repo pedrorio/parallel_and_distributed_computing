@@ -1,5 +1,9 @@
 library("ggplot2")
 library("stringr")
+library("dplyr")
+library("reshape2")
+library("knitr")
+library("kableExtra")
 
 df <- read.csv("comparison.csv", header = T)
 df$fileName <- sapply(str_split(df$fileName, "/", 3), function(x) (x[3]))
@@ -33,3 +37,10 @@ ggplot(df, aes(x = program, y = speedup, color = fileName, group = fileName)) +
   geom_line() +
   labs(x="Program", y="Speedup", title="Speedup")
 ggsave("speedup.png")
+
+
+kable(dcast(group_by(df, total), fileName ~ program, value.var = "total"), format = "latex", caption = "Total Execution Time", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("scale_down", "hold_position"), position = "center")
+
+kable(dcast(group_by(df, total), fileName ~ program, value.var = "speedup"), format = "latex", caption = "Speedup", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("scale_down", "hold_position"), position = "center")
