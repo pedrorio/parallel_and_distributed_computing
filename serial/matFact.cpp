@@ -22,8 +22,6 @@ int main(int argc, char *argv[]) {
 
     std::string inputFileName = argv[1];
 
-    std::cout << "before readinput" << std::endl;
-
     readInput(inputFileName, A, nonZeroElementIndexes,
               numberOfIterations, numberOfFeatures, convergenceCoefficient,
               numberOfUsers, numberOfItems,
@@ -65,11 +63,9 @@ int main(int argc, char *argv[]) {
 
     time_t end = omp_get_wtime();
 
-    std::cout << std::getenv("OMP_NUM_THREADS") << std::endl;
-
     std::ofstream logResults("../helpers/comparison.csv", std::ios::app);
     logResults << inputFileName << ", ";
-    logResults << 1 << ", ";
+    logResults << 0 << ", ";
 
     std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
     int numberOfErrors = verifyResult(outputFileName, BV);
