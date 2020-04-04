@@ -10,6 +10,6 @@
 void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
                int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
-               int &numberOfNonZeroElementss);
+               int &numberOfNonZeroElements);
 
 #endif //SERIAL_READINPUT_H

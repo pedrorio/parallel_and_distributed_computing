@@ -27,7 +27,7 @@ df$speedup[df$speedup == 0] <- NaN
 
 ggplot(df, aes(x = program, y = total, color = fileName, group = fileName)) +
   geom_line() +
-  labs(x="Program", y="Time (s)", title="Total Execution Time")
+  labs(x = "Program", y = "Time (s)", title = "Total Execution Time")
 ggsave("time.png")
 
 df <- df[df$program != "Serial",]
@@ -35,7 +35,7 @@ droplevels(df$program)
 
 ggplot(df, aes(x = program, y = speedup, color = fileName, group = fileName)) +
   geom_line() +
-  labs(x="Program", y="Speedup", title="Speedup")
+  labs(x = "Program", y = "Speedup", title = "Speedup")
 ggsave("speedup.png")
 
 
@@ -44,3 +44,4 @@ kable(dcast(group_by(df, total), fileName ~ program, value.var = "total"), forma
 
 kable(dcast(group_by(df, total), fileName ~ program, value.var = "speedup"), format = "latex", caption = "Speedup", booktabs = TRUE) %>%
   kable_styling(latex_options = c("scale_down", "hold_position"), position = "center")
+      

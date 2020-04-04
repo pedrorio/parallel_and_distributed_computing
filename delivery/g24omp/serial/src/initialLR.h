@@ -3,6 +3,7 @@
 
 
 #include <vector>
+#include <algorithm>
 
 void initialLR(std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
                int &numberOfUsers, int &numberOfItems, int &numberOfFeatures);

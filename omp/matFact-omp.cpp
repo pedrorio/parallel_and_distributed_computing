@@ -7,7 +7,7 @@
 #include "src/verifyResult.h"
 
 int main(int argc, char *argv[]) {
-    time_t begin = omp_get_wtime();
+//    time_t begin = omp_get_wtime();
 
     int numberOfIterations;
     int numberOfFeatures;
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
               numberOfUsers, numberOfItems,
               numberOfNonZeroElements);
 
-    time_t read_input = omp_get_wtime();
+//    time_t read_input = omp_get_wtime();
 
     std::vector<std::vector<double>> L(numberOfUsers, std::vector<double>(numberOfFeatures));
     std::vector<std::vector<double>> R(numberOfFeatures, std::vector<double>(numberOfItems));
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     std::vector<std::vector<double>> StoreL;
     std::vector<std::vector<double>> StoreR;
 
-    time_t initial_l_r = omp_get_wtime();
+//    time_t initial_l_r = omp_get_wtime();
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
         StoreR = R;
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
                  convergenceCoefficient);
     }
 
-    time_t final_filtering = omp_get_wtime();
+//    time_t final_filtering = omp_get_wtime();
 
     std::vector<int> BV(numberOfUsers);
     filterFinalMatrix(A, B, nonZeroElementIndexes,
@@ -62,27 +62,27 @@ int main(int argc, char *argv[]) {
                       BV);
 
 
-    time_t end = omp_get_wtime();
+//    time_t end = omp_get_wtime();
 
-    std::ofstream logResults("../helpers/comparison.csv", std::ios::app);
-    logResults << inputFileName << ", ";
-    logResults << std::getenv("OMP_NUM_THREADS") << ", ";
-
-    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-    int numberOfErrors = verifyResult(outputFileName, BV);
-    logResults << numberOfErrors << ", ";
-
-    logResults << numberOfUsers << ", ";
-    logResults << numberOfItems << ", ";
-    logResults << numberOfFeatures << ", ";
-    logResults << numberOfNonZeroElements << ", ";
-    logResults << numberOfIterations << ", ";
-    logResults << double(read_input - begin) << ", ";
-    logResults << double(initial_l_r - read_input) << ", ";
-    logResults << double(final_filtering - initial_l_r) << ", ";
-    logResults << double(end - begin);
-    logResults << std::endl;
-    logResults.close();
+//    std::ofstream logResults("../helpers/comparison.csv", std::ios::app);
+//    logResults << inputFileName << ", ";
+//    logResults << std::getenv("OMP_NUM_THREADS") << ", ";
+//
+//    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
+//    int numberOfErrors = verifyResult(outputFileName, BV);
+//    logResults << numberOfErrors << ", ";
+//
+//    logResults << numberOfUsers << ", ";
+//    logResults << numberOfItems << ", ";
+//    logResults << numberOfFeatures << ", ";
+//    logResults << numberOfNonZeroElements << ", ";
+//    logResults << numberOfIterations << ", ";
+//    logResults << double(read_input - begin) << ", ";
+//    logResults << double(initial_l_r - read_input) << ", ";
+//    logResults << double(final_filtering - initial_l_r) << ", ";
+//    logResults << double(end - begin);
+//    logResults << std::endl;
+//    logResults.close();
 
     return 0;
 }

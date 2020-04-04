@@ -59,3 +59,4 @@ fileName, OMP_NUM_THREADS, resultsAreCorrect, numberOfUsers, numberOfItems, numb
 ../instances/instML1M.in, 0, 0, 6040, 3952, 100, 1000209, 100, 6, 0, 1190, 1233
 ../instances/inst200-10000-50-100-300.in, 0, 0, 200, 10000, 50, 39819, 1000, 0, 0, 415, 418
 ../instances/instML100k.in, 0, 0, 943, 1682, 30, 100000, 3000, 1, 0, 751, 752
+../instances/inst30-40-10-2-10.in, 0, 0, 30, 40, 10, 170, 20000, 0, 0, 3, 3

@@ -2,6 +2,7 @@
 #define SERIAL_FILTERFINALMATRIX_H
 
 #include <vector>
+#include <stdlib.h>
 
 void filterFinalMatrix(std::vector<std::vector<double>> &A, std::vector<std::vector<double>> &B,
                        std::vector<std::vector<int>> &nonZeroElementIndexes,
