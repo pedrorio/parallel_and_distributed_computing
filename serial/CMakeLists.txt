@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-if(LINUX)   
+if(UNIX AND NOT APPLE)
 else()
    message(STATUS "set env var")
    set(ENV{CC} "/usr/local/opt/llvm/bin/clang")

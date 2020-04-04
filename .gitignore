@@ -19,3 +19,4 @@ omp/report/*
 !omp/report/main.pdf
 !omp/report/images
 helpers/compare
+!delivery/**/Makefile
