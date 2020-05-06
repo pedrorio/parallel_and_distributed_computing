@@ -1,10 +1,15 @@
 #include <cstring>
 #include "readInput.h"
 
+#define READ_INPUT 123
+
 void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
                int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
                int &numberOfNonZeroElements, int &processId) {
+
+    MPI_Request request;
+    MPI_Status status;
 
     std::vector<std::string> fileCopy;
 
@@ -56,24 +61,29 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
 
 
 
-//    int lineLength = line.length();
-//    char lineChars[lineLength + 1];
-//    strcpy(lineChars, line.c_str());
 
-//    char sampleChar2D[][];
-    std::vector<int> lineLenghts;
-
-        std::transform(fileCopy.begin(), fileCopy.end(),
-                       std::back_inserter(lines.begin()),
-                       [](std::string &line) {
-            return line.data();
-        });
-
-//                           std::for_each(fileCopy.begin(),fileCopy.end(), [](const int& n) { std::cout << " " << n; };)
 
 //        MPI_Scatter(&lines.front(), lineLength, MPI_CHAR, &lineChars[0], lineLength, MPI_CHAR, 0, MPI_COMM_WORLD);
-        MPI_Scatter(fileCopy.front().c_str(), lineLength, MPI_CHAR, &lineChars[0], lineLength, MPI_CHAR, 0, MPI_COMM_WORLD);
+        // sender
+        MPI_Send(&fileCopy[processId], fileCopy[processId].size(), MPI_CHAR, processId, READ_INPUT, MPI_COMM_WORLD);
 
+        // Receiver
+        MPI_Status status;
+        MPI_Probe(0,READ_INPUT,MPI_COMM_WORLD,&status);
+        int lineSize;
+        MPI_Get_count(&status,MPI_CHAR,&lineSize);
+        char lineChars [lineSize];
+        MPI_Irecv(&lineChars,lineSize,MPI_CHAR,0,READ_INPUT,MPI_COMM_WORLD, &request);
+        std::string line = lineChars;
+
+
+//        MPI_Scatter(fileCopy.front().c_str(), lineLength, MPI_CHAR, &lineChars[0], lineLength, MPI_CHAR, 0, MPI_COMM_WORLD);
+//        MPI_Send(fileCopy[processId].c_str(), fileCopy[processId].size(), MPI_CHAR, fileCopy[processId], fileCopy[processId].size(), MPI_CHAR, 0, MPI_COMM_WORLD);
+
+
+
+//        MPI_Send(fileCopy[processId].c_str(), fileCopy[processId].size(), MPI_CHAR, processId, READ_INPUT, MPI_COMM_WORLD);
+//        MPI_Wait(&request, &status);
     }
 //    MPI_Gather(
 //            void* send_data,
