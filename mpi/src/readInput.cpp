@@ -3,10 +3,18 @@
 
 #define READ_INPUT 123
 
+
+#define FIRST_ELEMENT(id, p, n) ((id)*(n)/(p))
+#define LAST_ELEMENT(id, p, n) (FIRST_ELEMENT((id)+1,p,n)-1)
+#define BLOCK_SIZE(id, p, n) (LAST_ELEMENT(id,p,n)-FIRST_ELEMENT(id,p,n)+1)
+
 void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
                int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
                int &numberOfNonZeroElements, int &processId) {
+
+//    MPI_Request requests[4];
+//    MPI_Status status[4];
 
     MPI_Request request;
     MPI_Status status;
@@ -15,6 +23,29 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
 
     int i, k, m, numberOfLines;
     std::string line;
+
+//    MPI_Probe(0, READ_INPUT, MPI_COMM_WORLD, &status[processId]);
+//    int lineSize;
+//    MPI_Get_count(&status[processId], MPI_CHAR, &lineSize);
+//    char lineChars[lineSize];
+//    MPI_Irecv(&lineChars, lineSize, MPI_CHAR, 0, READ_INPUT, MPI_COMM_WORLD, &requests[processId]);
+//    std::string line = lineChars;
+
+    if (processId != 0) {
+        MPI_Probe(0, READ_INPUT, MPI_COMM_WORLD, &status);
+        int lineSize;
+        MPI_Get_count(&status, MPI_CHAR, &lineSize);
+        char lineChars[lineSize];
+        MPI_Irecv(&lineChars, lineSize, MPI_CHAR, 0, READ_INPUT, MPI_COMM_WORLD, &request);
+        line = std::string(lineChars);
+
+        MPI_Wait(&request, &status);
+        //        MPI_Waitall(4, requests, status);
+    }
+
+//    if (processId != 0) {
+//        MPI_Wait(&requests[processId], &status[processId]);
+//    }
 
     if (processId == 0) {
 
@@ -59,22 +90,17 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
             }
         }
 
+//        MPI_Isend(fileCopy[4].c_str(), fileCopy[4].size(), MPI_CHAR, 1, READ_INPUT, MPI_COMM_WORLD, &request);
+
+        for (int k = 1; k < 4; k++) {
+            MPI_Isend(fileCopy[k + 4].c_str(), fileCopy[k + 4].size(), MPI_CHAR, k, READ_INPUT, MPI_COMM_WORLD,
+                      &request);
+//            MPI_Isend(&fileCopy[k + 4], fileCopy[k + 4].size(), MPI_CHAR, k, READ_INPUT, MPI_COMM_WORLD, &requests[k]);
+
+        }
 
 
 
-
-//        MPI_Scatter(&lines.front(), lineLength, MPI_CHAR, &lineChars[0], lineLength, MPI_CHAR, 0, MPI_COMM_WORLD);
-        // sender
-        MPI_Send(&fileCopy[processId], fileCopy[processId].size(), MPI_CHAR, processId, READ_INPUT, MPI_COMM_WORLD);
-
-        // Receiver
-        MPI_Status status;
-        MPI_Probe(0,READ_INPUT,MPI_COMM_WORLD,&status);
-        int lineSize;
-        MPI_Get_count(&status,MPI_CHAR,&lineSize);
-        char lineChars [lineSize];
-        MPI_Irecv(&lineChars,lineSize,MPI_CHAR,0,READ_INPUT,MPI_COMM_WORLD, &request);
-        std::string line = lineChars;
 
 
 //        MPI_Scatter(fileCopy.front().c_str(), lineLength, MPI_CHAR, &lineChars[0], lineLength, MPI_CHAR, 0, MPI_COMM_WORLD);
@@ -83,7 +109,7 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
 
 
 //        MPI_Send(fileCopy[processId].c_str(), fileCopy[processId].size(), MPI_CHAR, processId, READ_INPUT, MPI_COMM_WORLD);
-//        MPI_Wait(&request, &status);
+//        MPI_Wait(&requests, &status);
     }
 //    MPI_Gather(
 //            void* send_data,
@@ -118,7 +144,7 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
 //        int itemIndex = std::stoi(results[1]);
 //        double element = std::stod(results[2]);
 
-std::cout << "LINE IS: " << line << " IN PROCESS: " << processId << std::endl;
+    std::cout << "LINE IS: " << line << " IN PROCESS: " << processId << std::endl;
 //    fflush(stdout);
 //
 //

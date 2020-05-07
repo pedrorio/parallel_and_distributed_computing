@@ -15,9 +15,9 @@
 //#include "cstdlib"
 
 
-#define BLOCK_LOW(id,p,n) ((id)*(n)/(p))
-#define BLOCK_HIGH(id,p,n) (BLOCK_LOW((id)+1,p,n)-1)
-#define BLOCK_SIZE(id,p,n) (BLOCK_HIGH(id,p,n)-BLOCK_LOW(id,p,n)+1)
+#define FIRST_ELEMENT(id, p, n) ((id)*(n)/(p))
+#define LAST_ELEMENT(id, p, n) (FIRST_ELEMENT((id)+1,p,n)-1)
+#define BLOCK_SIZE(id, p, n) (LAST_ELEMENT(id,p,n)-FIRST_ELEMENT(id,p,n)+1)
 
 int main(int argc, char *argv[]) {
 
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcesses);
     MPI_Comm_rank(MPI_COMM_WORLD, &processId);
-    MPI_Barrier (MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     double begin = MPI_Wtime();
 
@@ -44,12 +44,12 @@ int main(int argc, char *argv[]) {
     std::string inputFileName = argv[1];
 
 
-        readInput(inputFileName, A, nonZeroElementIndexes,
-                  numberOfIterations, numberOfFeatures, convergenceCoefficient,
-                  numberOfUsers, numberOfItems,
-                  numberOfNonZeroElements, processId);
+    readInput(inputFileName, A, nonZeroElementIndexes,
+              numberOfIterations, numberOfFeatures, convergenceCoefficient,
+              numberOfUsers, numberOfItems,
+              numberOfNonZeroElements, processId);
 
-        double read_input = MPI_Wtime();
+    double read_input = MPI_Wtime();
 
 //        printf("Elapsed time is %f\n", read_input - begin);
 
