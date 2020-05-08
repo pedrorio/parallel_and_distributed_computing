@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     readInput(inputFileName, A, nonZeroElementIndexes,
               numberOfIterations, numberOfFeatures, convergenceCoefficient,
               numberOfUsers, numberOfItems,
-              numberOfNonZeroElements, processId);
+              numberOfNonZeroElements, processId, numberOfProcesses);
 
     double read_input = MPI_Wtime();
 

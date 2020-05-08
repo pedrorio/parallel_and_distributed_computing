@@ -1,6 +1,7 @@
 #include <cstring>
 #include "readInput.h"
 
+
 #define READ_INPUT 123
 
 
@@ -11,7 +12,7 @@
 void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
                int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
-               int &numberOfNonZeroElements, int &processId) {
+               int &numberOfNonZeroElements, int &processId, int &numberOfProcesses) {
 
 //    MPI_Request requests[4];
 //    MPI_Status status[4];
@@ -92,12 +93,26 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
 
 //        MPI_Isend(fileCopy[4].c_str(), fileCopy[4].size(), MPI_CHAR, 1, READ_INPUT, MPI_COMM_WORLD, &request);
 
-        for (int k = 1; k < 4; k++) {
-            MPI_Isend(fileCopy[k + 4].c_str(), fileCopy[k + 4].size(), MPI_CHAR, k, READ_INPUT, MPI_COMM_WORLD,
-                      &request);
-//            MPI_Isend(&fileCopy[k + 4], fileCopy[k + 4].size(), MPI_CHAR, k, READ_INPUT, MPI_COMM_WORLD, &requests[k]);
 
+        for (int j = 0; j < numberOfProcesses ; ++j) {
+            std::vector<std::string> processo = fileCopy(fileCopy[FIRST_ELEMENT(j,  numberOfProcesses, fileCopy.size())], fileCopy[LAST_ELEMENT(j,  numberOfProcesses, fileCopy.size())]);
+            std::string frases;
+            for (const auto &piece : fileCopy) frases += piece + ",";
+            MPI_Isend(frases.c_str(), frases.size(), MPI_CHAR, j, READ_INPUT, MPI_COMM_WORLD, &request);
         }
+
+
+
+
+
+
+//
+//        for (int k = 1; k < 4; k++) {
+//            MPI_Isend(fileCopy[k + 4].c_str(), fileCopy[k + 4].size(), MPI_CHAR, k, READ_INPUT, MPI_COMM_WORLD,
+//                      &request);
+////            MPI_Isend(&fileCopy[k + 4], fileCopy[k + 4].size(), MPI_CHAR, k, READ_INPUT, MPI_COMM_WORLD, &requests[k]);
+//
+//        }
 
 
 
