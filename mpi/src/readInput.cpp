@@ -1,61 +1,76 @@
 #include <cstring>
 #include "readInput.h"
 
-
 #define READ_INPUT 123
-
+#define NUMBER_OF_LINES 132
+#define ROOT 0
 
 #define FIRST_ELEMENT(id, p, n) ((id)*(n)/(p))
 #define LAST_ELEMENT(id, p, n) (FIRST_ELEMENT((id)+1,p,n)-1)
 #define BLOCK_SIZE(id, p, n) (LAST_ELEMENT(id,p,n)-FIRST_ELEMENT(id,p,n)+1)
 
-void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
+std::vector<std::string> split(std::string str, char delimiter) {
+    std::vector<std::string> internal;
+    std::stringstream ss(str); // Turn the string into a stream.
+    std::string tok;
+
+    while (getline(ss, tok, delimiter)) {
+        internal.push_back(tok);
+    }
+
+    return internal;
+}
+
+void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
                int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
                int &numberOfNonZeroElements, int &processId, int &numberOfProcesses) {
 
-//    MPI_Request requests[4];
-//    MPI_Status status[4];
-
-    MPI_Request request;
-    MPI_Status status;
+    MPI_Request readInputRequest;
+    MPI_Status readInputStatus;
 
     std::vector<std::string> fileCopy;
-
-    int i, k, m, numberOfLines;
+    std::vector<std::string> receiveFileLines;
     std::string line;
 
-//    MPI_Probe(0, READ_INPUT, MPI_COMM_WORLD, &status[processId]);
-//    int lineSize;
-//    MPI_Get_count(&status[processId], MPI_CHAR, &lineSize);
-//    char lineChars[lineSize];
-//    MPI_Irecv(&lineChars, lineSize, MPI_CHAR, 0, READ_INPUT, MPI_COMM_WORLD, &requests[processId]);
-//    std::string line = lineChars;
 
-    if (processId != 0) {
-        MPI_Probe(0, READ_INPUT, MPI_COMM_WORLD, &status);
+    int i, k, m;
+    double StoreA;
+
+    int numberOfLines;
+
+
+    // receive lineSize
+    // receive line
+    if (processId != ROOT) {
+        MPI_Probe(0, READ_INPUT, MPI_COMM_WORLD, &readInputStatus);
         int lineSize;
-        MPI_Get_count(&status, MPI_CHAR, &lineSize);
+        MPI_Get_count(&readInputStatus, MPI_CHAR, &lineSize);
         char lineChars[lineSize];
-        MPI_Irecv(&lineChars, lineSize, MPI_CHAR, 0, READ_INPUT, MPI_COMM_WORLD, &request);
-        line = std::string(lineChars);
+        MPI_Irecv(&lineChars, lineSize, MPI_CHAR, 0, READ_INPUT, MPI_COMM_WORLD, &readInputRequest);
+        line = lineChars;
 
-        MPI_Wait(&request, &status);
-        //        MPI_Waitall(4, requests, status);
+        std::cout << "Process " << processId << " receives line " << line << std::endl;
+
+        MPI_Wait(&readInputRequest, &readInputStatus);
     }
 
-//    if (processId != 0) {
-//        MPI_Wait(&requests[processId], &status[processId]);
-//    }
-
-    if (processId == 0) {
-
+    // compute numberOfLines
+    // broadcast numberOfLines
+    if (processId == ROOT) {
         std::ifstream countFileLines(inputFileName);
         for (numberOfLines = 0; std::getline(countFileLines, line); numberOfLines++) {
             fileCopy.push_back(line);
         };
         countFileLines.close();
+        MPI_Bcast(&numberOfLines, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
+        // compute numberOfIterations [not used here]
+        // compute numberOfUsers
+        // compute numberOfItems
+        // compute numberOfNonZeroElements
+        // compute convergenceCoefficient [not used here]
+        // initialize A
         for (int k = 0; k < 4; k++) {
             line = fileCopy[k];
             switch (k) {
@@ -91,82 +106,90 @@ void readInput(const std::string &inputFileName, std::vector<std::vector<double>
             }
         }
 
-//        MPI_Isend(fileCopy[4].c_str(), fileCopy[4].size(), MPI_CHAR, 1, READ_INPUT, MPI_COMM_WORLD, &request);
+        double StoreA[numberOfUsers][numberOfItems];
+        MPI_Bcast(&numberOfUsers, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+        MPI_Bcast(&numberOfItems, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+        MPI_Bcast(&numberOfNonZeroElements, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+        MPI_Bcast(&StoreA, numberOfUsers * numberOfItems, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
 
+        std::vector<std::string> sendFileLines = std::vector<std::string>(&fileCopy[4], &fileCopy[numberOfLines]);
 
-        for (int j = 0; j < numberOfProcesses ; ++j) {
-            std::vector<std::string> processo = fileCopy(fileCopy[FIRST_ELEMENT(j,  numberOfProcesses, fileCopy.size())], fileCopy[LAST_ELEMENT(j,  numberOfProcesses, fileCopy.size())]);
-            std::string frases;
-            for (const auto &piece : fileCopy) frases += piece + ",";
-            MPI_Isend(frases.c_str(), frases.size(), MPI_CHAR, j, READ_INPUT, MPI_COMM_WORLD, &request);
+        // Send string of joined strings
+        for (int j = 0; j < numberOfProcesses; j++) {
+            std::vector<std::string> words = std::vector<std::string>(
+                    &sendFileLines[FIRST_ELEMENT(j, numberOfProcesses, sendFileLines.size())],
+                    &sendFileLines[LAST_ELEMENT(j, numberOfProcesses, sendFileLines.size()) + 1]);
+
+            for (int l = 0; l < words.size(); l++) {
+                std::cout << "Process " << j << " sends word " << l << std::endl;
+            }
+
+            std::string phrase = "";
+            for (int m = 0; m < words.size(); m++) {
+                phrase += words[m];
+                if (m != words.size() - 1) {
+                    phrase += ",";
+                }
+            }
+
+            std::cout << "Process " << j << " sends phrase " << phrase << std::endl;
+
+            if (j == 0) {
+                line = phrase;
+            } else {
+                MPI_Isend(phrase.c_str(), phrase.size(), MPI_CHAR, j, READ_INPUT, MPI_COMM_WORLD,
+                          &readInputRequest);
+            }
         }
-
-
-
-
-
-
-//
-//        for (int k = 1; k < 4; k++) {
-//            MPI_Isend(fileCopy[k + 4].c_str(), fileCopy[k + 4].size(), MPI_CHAR, k, READ_INPUT, MPI_COMM_WORLD,
-//                      &request);
-////            MPI_Isend(&fileCopy[k + 4], fileCopy[k + 4].size(), MPI_CHAR, k, READ_INPUT, MPI_COMM_WORLD, &requests[k]);
-//
-//        }
-
-
-
-
-
-//        MPI_Scatter(fileCopy.front().c_str(), lineLength, MPI_CHAR, &lineChars[0], lineLength, MPI_CHAR, 0, MPI_COMM_WORLD);
-//        MPI_Send(fileCopy[processId].c_str(), fileCopy[processId].size(), MPI_CHAR, fileCopy[processId], fileCopy[processId].size(), MPI_CHAR, 0, MPI_COMM_WORLD);
-
-
-
-//        MPI_Send(fileCopy[processId].c_str(), fileCopy[processId].size(), MPI_CHAR, processId, READ_INPUT, MPI_COMM_WORLD);
-//        MPI_Wait(&requests, &status);
     }
-//    MPI_Gather(
-//            void* send_data,
-//            int send_count,
-//            MPI_Datatype send_datatype,
-//            void* recv_data,
-//            int recv_count,
-//            MPI_Datatype recv_datatype,
-//            int root,
-//            MPI_Comm communicator)
 
-//    MPI_Allgather
-//    void* send_data,
-//    int send_count,
-//    MPI_Datatype send_datatype,
-//    void* recv_data,
-//    int recv_count,
-//    MPI_Datatype recv_datatype,
-//    int root,
-//    MPI_Comm communicator)
 
-//    #pragma omp parallel for private(m, line) shared(A, nonZeroElementIndexes, numberOfLines, fileCopy) default(none) schedule(guided)
-//        MPI_Scatter(&fileCopy.front(), numberOfLines - 4, MPI_CHAR, &line.front(), numberOfLines - 4, MPI_CHAR, 0, MPI_COMM_WORLD);
+    int globalUserIndexes[numberOfLines - 4];
+    int globalItemIndexes[numberOfLines - 4];
+    int globalValues[numberOfLines - 4];
 
-//        MPI_Alltoall(&fileCopy.front(), lineLength, MPI_CHAR, &lineChars[0], lineLength, MPI_CHAR, MPI_COMM_WORLD);
-//    for (int m = 4; m < numberOfLines; m++) {
-//        line = fileCopy[m];
-//        std::istringstream iss(line);
-//        std::vector<std::string> results(std::istream_iterator<std::string>{iss},
-//                                         std::istream_iterator<std::string>());
-//        int userIndex = std::stoi(results[0]);
-//        int itemIndex = std::stoi(results[1]);
-//        double element = std::stod(results[2]);
+    std::vector<int> userIndexes;
+    std::vector<int> itemIndexes;
+    std::vector<double> elements;
 
-    std::cout << "LINE IS: " << line << " IN PROCESS: " << processId << std::endl;
-//    fflush(stdout);
-//
-//
-//
-//
+    // split strings
+    std::vector<std::string> lines = split(line, ',');
+
+    for (auto &lineElement: lines) {
+        std::cout << lineElement << std::endl;
+        std::vector<std::string> results = split(lineElement, ' ');
+
+        int userIndex = std::stoi(results[0]);
+        int itemIndex = std::stoi(results[1]);
+        double element = std::stod(results[2]);
+
+        std::cout << userIndex << std::endl;
+
+        userIndexes.push_back(userIndex);
+        itemIndexes.push_back(itemIndex);
+        elements.push_back(element);
+    }
+
+    int elementsPerProcess[numberOfProcesses];
+    for (int l = 0; l < numberOfProcesses; l++) {
+        elementsPerProcess[l] = BLOCK_SIZE(l, numberOfProcesses, numberOfLines - 4);
+    }
+
+    // get a copy of the matrix subsection per process from the process first non zero element to the process last zero element
+//    gatherv the contiguous sections into the final matrix
+
+//    (users,items, maxUsers, maxItems) => users * maxItems + items
+
+
+//    MPI_Gatherv(&elements, elements.size(), MPI_INT, &StoreA, elementsPerProcess, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Gather(&userIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, numberOfLines - 4, MPI_INT, ROOT,
+                   MPI_COMM_WORLD);
+        MPI_Gather(&itemIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, numberOfLines - 4, MPI_INT, ROOT,
+                   MPI_COMM_WORLD);
+        MPI_Gather(&userIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, numberOfLines - 4, MPI_INT, ROOT,
+                   MPI_COMM_WORLD);
+
 //        A[userIndex][itemIndex] = element;
 //        nonZeroElementIndexes[m - 4] = {userIndex, itemIndex};
-//    }
-
 }
+
