@@ -10,6 +10,7 @@
 #include <vector>
 #include <iterator>
 #include <algorithm>
+#include <string>
 
 void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
                std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,

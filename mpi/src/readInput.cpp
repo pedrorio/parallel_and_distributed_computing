@@ -3,6 +3,8 @@
 
 #define READ_INPUT 123
 #define NUMBER_OF_LINES 132
+#define SEND_MATRIX 132
+#define SEND_SIZES 131
 #define ROOT 0
 
 #define FIRST_ELEMENT(id, p, n) ((id)*(n)/(p))
@@ -29,16 +31,16 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
     MPI_Request readInputRequest;
     MPI_Status readInputStatus;
 
+    MPI_Request sendSubMatrixRequest;
+    MPI_Status sendSubMatrixStatus;
+
     std::vector<std::string> fileCopy;
     std::vector<std::string> receiveFileLines;
     std::string line;
 
-
     int i, k, m;
-    double StoreA;
 
-    int numberOfLines;
-
+    int numberOfLines = 0;
 
     // receive lineSize
     // receive line
@@ -49,8 +51,6 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
         char lineChars[lineSize];
         MPI_Irecv(&lineChars, lineSize, MPI_CHAR, 0, READ_INPUT, MPI_COMM_WORLD, &readInputRequest);
         line = lineChars;
-
-        std::cout << "Process " << processId << " receives line " << line << std::endl;
 
         MPI_Wait(&readInputRequest, &readInputStatus);
     }
@@ -63,14 +63,15 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
             fileCopy.push_back(line);
         };
         countFileLines.close();
-        MPI_Bcast(&numberOfLines, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+    }
+    MPI_Bcast(&numberOfLines, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
+    if (processId == ROOT) {
         // compute numberOfIterations [not used here]
         // compute numberOfUsers
         // compute numberOfItems
         // compute numberOfNonZeroElements
         // compute convergenceCoefficient [not used here]
-        // initialize A
         for (int k = 0; k < 4; k++) {
             line = fileCopy[k];
             switch (k) {
@@ -99,18 +100,10 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
                                                                              std::vector<int>(2));
                     nonZeroElementIndexes = StoreNonZeroElementIndexes;
 
-                    std::vector<std::vector<double>> StoreA(numberOfUsers, std::vector<double>(numberOfItems, 0));
-                    A = StoreA;
                     break;
                 }
             }
         }
-
-        double StoreA[numberOfUsers][numberOfItems];
-        MPI_Bcast(&numberOfUsers, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-        MPI_Bcast(&numberOfItems, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-        MPI_Bcast(&numberOfNonZeroElements, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-        MPI_Bcast(&StoreA, numberOfUsers * numberOfItems, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
 
         std::vector<std::string> sendFileLines = std::vector<std::string>(&fileCopy[4], &fileCopy[numberOfLines]);
 
@@ -118,12 +111,11 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
         for (int j = 0; j < numberOfProcesses; j++) {
             std::vector<std::string> words = std::vector<std::string>(
                     &sendFileLines[FIRST_ELEMENT(j, numberOfProcesses, sendFileLines.size())],
-                    &sendFileLines[LAST_ELEMENT(j, numberOfProcesses, sendFileLines.size()) + 1]);
+                    &sendFileLines[LAST_ELEMENT(j, numberOfProcesses, sendFileLines.size()) + 1]
+            );
 
-            for (int l = 0; l < words.size(); l++) {
-                std::cout << "Process " << j << " sends word " << l << std::endl;
-            }
 
+            // Join lines
             std::string phrase = "";
             for (int m = 0; m < words.size(); m++) {
                 phrase += words[m];
@@ -132,9 +124,8 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
                 }
             }
 
-            std::cout << "Process " << j << " sends phrase " << phrase << std::endl;
-
-            if (j == 0) {
+            // Send lines
+            if (j == ROOT) {
                 line = phrase;
             } else {
                 MPI_Isend(phrase.c_str(), phrase.size(), MPI_CHAR, j, READ_INPUT, MPI_COMM_WORLD,
@@ -143,10 +134,14 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
         }
     }
 
+    MPI_Bcast(&numberOfUsers, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast(&numberOfItems, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast(&numberOfNonZeroElements, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
-    int globalUserIndexes[numberOfLines - 4];
-    int globalItemIndexes[numberOfLines - 4];
-    int globalValues[numberOfLines - 4];
+//    std::cout << "process " << processId << " numberOfUsers " << numberOfUsers << std::endl;
+//    std::cout << "process " << processId << " numberOfItems " << numberOfItems << std::endl;
+
+    std::vector<std::vector<double>> StoreA(numberOfUsers, std::vector<double>(numberOfItems, 0));
 
     std::vector<int> userIndexes;
     std::vector<int> itemIndexes;
@@ -156,40 +151,70 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
     std::vector<std::string> lines = split(line, ',');
 
     for (auto &lineElement: lines) {
-        std::cout << lineElement << std::endl;
         std::vector<std::string> results = split(lineElement, ' ');
 
         int userIndex = std::stoi(results[0]);
         int itemIndex = std::stoi(results[1]);
         double element = std::stod(results[2]);
 
-        std::cout << userIndex << std::endl;
-
         userIndexes.push_back(userIndex);
         itemIndexes.push_back(itemIndex);
         elements.push_back(element);
     }
 
-    int elementsPerProcess[numberOfProcesses];
-    for (int l = 0; l < numberOfProcesses; l++) {
-        elementsPerProcess[l] = BLOCK_SIZE(l, numberOfProcesses, numberOfLines - 4);
+    for (int n = 0; n < elements.size(); n++) {
+//        std::cout << "process " << processId << " has userIndex " << userIndexes[n] << " and itemIndex " << itemIndexes[n] << std::endl;
+        StoreA[userIndexes[n]][itemIndexes[n]] = elements[n];
+//        std::cout << "Process " << processId << " has StoreA element " << StoreA[userIndexes[n]][itemIndexes[n]] << std::endl;
     }
 
-    // get a copy of the matrix subsection per process from the process first non zero element to the process last zero element
-//    gatherv the contiguous sections into the final matrix
 
-//    (users,items, maxUsers, maxItems) => users * maxItems + items
+    int tamanhos[numberOfProcesses];
+    int displacements[numberOfProcesses];
+
+    int displacement = (userIndexes[0] * numberOfItems + itemIndexes[0]);
+    int tamanho = (userIndexes[userIndexes.size() - 1] * numberOfItems + itemIndexes[itemIndexes.size() - 1]) -
+                  (userIndexes[0] * numberOfItems + itemIndexes[0]);
+
+    std::cout << "tamanho is " << tamanho << " in process " << processId << std::endl;
+
+//    std::vector<int> counts(numberOfProcesses, 1);
+    // GATHER HERE
+    MPI_Allgather(&tamanho, 1, MPI_INT, &tamanhos, 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Allgather(&displacement, 1, MPI_INT, &displacements, 1, MPI_INT, MPI_COMM_WORLD);
+//    MPI_Gatherv(tamanho, 1, MPI_INT, &tamanhos, &localTamanhos, &displacements, MPI_INT, ROOT, MPI_COMM_WORLD);
 
 
-//    MPI_Gatherv(&elements, elements.size(), MPI_INT, &StoreA, elementsPerProcess, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Gather(&userIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, numberOfLines - 4, MPI_INT, ROOT,
-                   MPI_COMM_WORLD);
-        MPI_Gather(&itemIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, numberOfLines - 4, MPI_INT, ROOT,
-                   MPI_COMM_WORLD);
-        MPI_Gather(&userIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, numberOfLines - 4, MPI_INT, ROOT,
-                   MPI_COMM_WORLD);
+if (processId == ROOT) {
+    for (int j = 1; j < numberOfProcesses; j++) {
+
+        int itemIndex = displacements[j] - userIndexes[j] * numberOfItems;
+        int userIndex = (displacements[j] - itemIndexes[j]) / numberOfItems;
+        std::cout << "Process " << j << "userIndex " << userIndex << std::endl;
+        std::cout << "Process " << j << "itemIndex  " << itemIndex << std::endl;
+
+//            std::cout << StoreA[userIndex][itemIndex] << std::endl;
+        MPI_Irecv(&StoreA[userIndex][itemIndex], tamanhos[j], MPI_DOUBLE, j, SEND_SIZES, MPI_COMM_WORLD,
+                  &sendSubMatrixRequest);
+    }
+
+    MPI_Wait(&sendSubMatrixRequest, &sendSubMatrixStatus);
+    tamanhos[ROOT] = tamanho;
+
+    for (int p = 0; p < numberOfUsers; p++) {
+        for (int j = 0; j < numberOfItems; j++) {
+//                std::cout << StoreA[p][j] << std::endl;
+        }
+    }
+}
+    if (processId != ROOT) {
+        MPI_Isend(&StoreA + userIndexes[0] * numberOfItems + itemIndexes[0], tamanho, MPI_DOUBLE, ROOT, SEND_SIZES,
+                  MPI_COMM_WORLD, &sendSubMatrixRequest);
+    }
+
+
 
 //        A[userIndex][itemIndex] = element;
 //        nonZeroElementIndexes[m - 4] = {userIndex, itemIndex};
-}
 
+}
