@@ -1,30 +1,17 @@
-#include <cstring>
-#include "readInput.h"
+#ifndef SERIAL_READINPUT_H
+#define SERIAL_READINPUT_H
+
+#include <stdlib.h>
+#include <stdio.h>
 #include <float.h>
+#include <string.h>
+#include "mpi.h"
 
 #define READ_INPUT 123
 #define NUMBER_OF_LINES 132
+#define ROOT 0
 
-#define FIRST_ELEMENT(id, p, n) ((id)*(n)/(p))
-#define LAST_ELEMENT(id, p, n) (FIRST_ELEMENT((id)+1,p,n)-1)
-#define BLOCK_SIZE(id, p, n) (LAST_ELEMENT(id,p,n)-FIRST_ELEMENT(id,p,n)+1)
-
-std::vector<std::string> split(std::string str, char delimiter) {
-    std::vector<std::string> internal;
-    std::stringstream ss(str); // Turn the string into a stream.
-    std::string tok;
-
-    while (getline(ss, tok, delimiter)) {
-        internal.push_back(tok);
-    }
-
-    return internal;
-}
-
-void readInput(const char inputFileName[], std::vector<std::vector<double>> &A,
-               std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
-               int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
-               int &numberOfNonZeroElements, int &processId, int &numberOfProcesses) {
+void readInput(const char inputFileName[], const int processId, const int numberOfProcesses) {
 
 //    MPI_Request readInputRequest;
 //    MPI_Status readInputStatus;
@@ -37,51 +24,64 @@ void readInput(const char inputFileName[], std::vector<std::vector<double>> &A,
 //    int i, k, m;
 //    double StoreA;
 //
-    int maxDoubleSize = snprintf(NULL, 0, "%d", DBL_MAX);
-    int maxLineSize = 3 * maxDoubleSize + 2;
+    if (processId == ROOT) {
 
-    char line[maxLineSize];
 
-    FILE *inputFilePointer;
+        int maxDoubleSize = snprintf(NULL, 0, "%d", (int) DBL_MAX);
+        int maxLineSize = 3 * maxDoubleSize + 2 + 1;
+        char line[maxLineSize];
 
-    int totalNumberOfLines = 0;
-    inputFilePointer = fopen(inputFileName, "r");
-    if (inputFilePointer) {
-        while (fgets(line, maxLineSize, inputFilePointer) != NULL) {
-            totalNumberOfLines++;
-        }
-        fclose(inputFilePointer);
-    }
+        FILE *inputFilePointer;
 
-    auto fileCopy = (char *) malloc((maxLineSize + 1) * totalNumberOfLines);
-//     A = twoDDoubleArray;
-//    auto *twoDDoubleArray = (double *)malloc(numberOfLines - 4);
-
-    char *token;
-    const char space[2] = " ";
-
-    int numberOfLines = 0;
-    inputFilePointer = fopen(inputFileName, "r");
-    if (inputFilePointer) {
-        while (fgets(line, maxLineSize, inputFilePointer) != NULL) {
-            printf("%s", line);
-            for (int j = 0; j < strlen(line); j++) {
-                fileCopy[numberOfLines * (maxLineSize + 1) + j] = line[j];
+        int totalNumberOfLines = 0;
+        inputFilePointer = fopen(inputFileName, "r");
+        if (inputFilePointer) {
+            while (fgets(line, maxLineSize, inputFilePointer) != NULL) {
+                totalNumberOfLines++;
             }
-            fileCopy[numberOfLines * (maxLineSize + 1) + strlen(line)] = '\0';
-            numberOfLines++;
-
-            strtok(fileCopy, space);
-
+            fclose(inputFilePointer);
         }
-        fclose(inputFilePointer);
-    }
+
+        char *fileCopy = (char *) malloc(totalNumberOfLines * maxLineSize * sizeof(char));
+
+        const char space[2] = " ";
+
+        int lineNumber = 0;
+        inputFilePointer = fopen(inputFileName, "r");
+        if (inputFilePointer) {
+            while (fgets(line, maxLineSize, inputFilePointer) != NULL) {
+                for (int j = 0; j <= maxLineSize; j++) {
+                    fileCopy[lineNumber * maxLineSize + j] = '\0';
+
+                }
+
+                for (int j = 0; j < strlen(line); j++) {
+                    fileCopy[lineNumber * maxLineSize + j] = line[j];
+                }
+
+                for (int j = 0; j < maxLineSize; j++) {
+                    printf("%c", fileCopy[lineNumber * maxLineSize + j]);
+                }
+
+                lineNumber++;
+
+                strtok(fileCopy, space);
+
+            }
+            fclose(inputFilePointer);
+        }
+
+        for (int i = 0; i < totalNumberOfLines; i++) {
+            for (int j = 0; j < maxLineSize; j++) {
+                printf("%c", fileCopy[i * maxLineSize + j]);
+            }
+        }
 
 
 
-    // BEGIN
+        // BEGIN
 //        if (processId != 0) {
-////        MPI_Irecv(&numberOfLines, 1, MPI_INT, 0, NUMBER_OF_LINES, MPI_COMM_WORLD, &numberOfLinesRequest);
+////        MPI_Irecv(&lineNumber, 1, MPI_INT, 0, NUMBER_OF_LINES, MPI_COMM_WORLD, &numberOfLinesRequest);
 ////        MPI_Wait(&numberOfLinesRequest, &numberOfLinesStatus);
 //
 //            MPI_Probe(0, READ_INPUT, MPI_COMM_WORLD, &readInputStatus);
@@ -97,16 +97,16 @@ void readInput(const char inputFileName[], std::vector<std::vector<double>> &A,
 //        if (processId == 0) {
 //
 //            std::ifstream countFileLines(inputFileName);
-//            for (numberOfLines = 0; std::getline(countFileLines, line); numberOfLines++) {
+//            for (lineNumber = 0; std::getline(countFileLines, line); lineNumber++) {
 //                fileCopy.push_back(line);
 //            };
 //            countFileLines.close();
 //
-//            MPI_Bcast(&numberOfLines, 1, MPI_INT, 0, MPI_COMM_WORLD);
-////        MPI_Bcast(&globalUserIndexes, numberOfLines - 4, MPI_INT, 0, MPI_COMM_WORLD);
-////        MPI_Bcast(&globalItemIndexes, numberOfLines - 4, MPI_INT, 0, MPI_COMM_WORLD);
-////        MPI_Bcast(&globalValues, numberOfLines - 4, MPI_INT, 0, MPI_COMM_WORLD);
-////        MPI_Isend(&numberOfLines, 1, MPI_INT, 1, NUMBER_OF_LINES, MPI_COMM_WORLD, &numberOfLinesRequest);
+//            MPI_Bcast(&lineNumber, 1, MPI_INT, 0, MPI_COMM_WORLD);
+////        MPI_Bcast(&globalUserIndexes, lineNumber - 4, MPI_INT, 0, MPI_COMM_WORLD);
+////        MPI_Bcast(&globalItemIndexes, lineNumber - 4, MPI_INT, 0, MPI_COMM_WORLD);
+////        MPI_Bcast(&globalValues, lineNumber - 4, MPI_INT, 0, MPI_COMM_WORLD);
+////        MPI_Isend(&lineNumber, 1, MPI_INT, 1, NUMBER_OF_LINES, MPI_COMM_WORLD, &numberOfLinesRequest);
 //
 //// https://cseweb.ucsd.edu/classes/sp99/cse160/programming/packing/packing.html
 //
@@ -153,7 +153,7 @@ void readInput(const char inputFileName[], std::vector<std::vector<double>> &A,
 //            MPI_Bcast(&StoreA, numberOfUsers * numberOfItems, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 //
 //
-//            std::vector<std::string> fileLines = std::vector<std::string>(&fileCopy[4], &fileCopy[numberOfLines]);
+//            std::vector<std::string> fileLines = std::vector<std::string>(&fileCopy[4], &fileCopy[lineNumber]);
 //
 //            // use scatterv
 //            for (int j = 0; j < numberOfProcesses; j++) {
@@ -178,9 +178,9 @@ void readInput(const char inputFileName[], std::vector<std::vector<double>> &A,
 //            }
 //        }
 //
-//        int globalUserIndexes[numberOfLines - 4];
-//        int globalItemIndexes[numberOfLines - 4];
-//        int globalValues[numberOfLines - 4];
+//        int globalUserIndexes[lineNumber - 4];
+//        int globalItemIndexes[lineNumber - 4];
+//        int globalValues[lineNumber - 4];
 //
 //        std::vector<int> userIndexes;
 //        std::vector<int> itemIndexes;
@@ -206,7 +206,7 @@ void readInput(const char inputFileName[], std::vector<std::vector<double>> &A,
 //
 //        int elementsPerProcess[numberOfProcesses];
 //        for (int l = 0; l < numberOfProcesses; l++) {
-//            elementsPerProcess[l] = BLOCK_SIZE(l, numberOfProcesses, numberOfLines - 4);
+//            elementsPerProcess[l] = BLOCK_SIZE(l, numberOfProcesses, lineNumber - 4);
 //        }
 //
 //        // get a copy of the matrix subsection per process from the process first non zero element to the process last zero element
@@ -218,11 +218,11 @@ void readInput(const char inputFileName[], std::vector<std::vector<double>> &A,
 //
 //
 ////    MPI_Gatherv(&elements, elements.size(), MPI_INT, &StoreA, elementsPerProcess, MPI_INT, 0, MPI_COMM_WORLD);
-//        MPI_Gather(&userIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, numberOfLines - 4, MPI_INT, 0,
+//        MPI_Gather(&userIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, lineNumber - 4, MPI_INT, 0,
 //                   MPI_COMM_WORLD);
-//        MPI_Gather(&itemIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, numberOfLines - 4, MPI_INT, 0,
+//        MPI_Gather(&itemIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, lineNumber - 4, MPI_INT, 0,
 //                   MPI_COMM_WORLD);
-//        MPI_Gather(&userIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, numberOfLines - 4, MPI_INT, 0,
+//        MPI_Gather(&userIndexes, userIndexes.size(), MPI_INT, &globalUserIndexes, lineNumber - 4, MPI_INT, 0,
 //                   MPI_COMM_WORLD);
 // END
 
@@ -231,5 +231,9 @@ void readInput(const char inputFileName[], std::vector<std::vector<double>> &A,
 //    }
 
 
-    free(fileCopy);
+        free(fileCopy);
+    }
+
 }
+
+#endif //SERIAL_READINPUT_H

@@ -184,32 +184,28 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
     MPI_Allgather(&displacement, 1, MPI_INT, &displacements, 1, MPI_INT, MPI_COMM_WORLD);
 //    MPI_Gatherv(tamanho, 1, MPI_INT, &tamanhos, &localTamanhos, &displacements, MPI_INT, ROOT, MPI_COMM_WORLD);
 
-
-if (processId == ROOT) {
-    for (int j = 1; j < numberOfProcesses; j++) {
-
-        int itemIndex = displacements[j] - userIndexes[j] * numberOfItems;
-        int userIndex = (displacements[j] - itemIndexes[j]) / numberOfItems;
-        std::cout << "Process " << j << "userIndex " << userIndex << std::endl;
-        std::cout << "Process " << j << "itemIndex  " << itemIndex << std::endl;
-
-//            std::cout << StoreA[userIndex][itemIndex] << std::endl;
-        MPI_Irecv(&StoreA[userIndex][itemIndex], tamanhos[j], MPI_DOUBLE, j, SEND_SIZES, MPI_COMM_WORLD,
-                  &sendSubMatrixRequest);
-    }
-
-    MPI_Wait(&sendSubMatrixRequest, &sendSubMatrixStatus);
-    tamanhos[ROOT] = tamanho;
-
-    for (int p = 0; p < numberOfUsers; p++) {
-        for (int j = 0; j < numberOfItems; j++) {
-//                std::cout << StoreA[p][j] << std::endl;
-        }
-    }
-}
     if (processId != ROOT) {
-        MPI_Isend(&StoreA + userIndexes[0] * numberOfItems + itemIndexes[0], tamanho, MPI_DOUBLE, ROOT, SEND_SIZES,
-                  MPI_COMM_WORLD, &sendSubMatrixRequest);
+        MPI_Send(&StoreA[userIndexes[0]][itemIndexes[0]], tamanho, MPI_DOUBLE, ROOT, SEND_SIZES, MPI_COMM_WORLD);
+    }
+
+
+    if (processId == ROOT) {
+        for (int j = 1; j < numberOfProcesses; j++) {
+
+            MPI_Recv(&StoreA, tamanhos[j], MPI_DOUBLE, j, SEND_SIZES, MPI_COMM_WORLD, &sendSubMatrixStatus);
+            std::cout << "Receive " << j << std::endl;
+        }
+
+        std::cout << "Out of loop " << std::endl;
+
+
+        for (int p = 0; p < numberOfUsers; p++) {
+            for (int j = 0; j < numberOfItems; j++) {
+                std::cout << "inside loop in process" << std::endl;
+
+                std::cout << StoreA[p][j] << std::endl;
+            }
+        }
     }
 
 
