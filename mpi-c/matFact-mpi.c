@@ -34,8 +34,6 @@ int main(int argc, char *argv[]) {
 //    std::vector<std::vector<int>> nonZeroElementIndexes;
 //    int nonZeroElementIndexes[][2];
 
-//    char inputFileName[] = argv[1];
-
 
     readInput(argv[1], processId, numberOfProcesses);
 
