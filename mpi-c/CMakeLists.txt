@@ -30,7 +30,7 @@ add_executable(
         src/filterFinalMatrix.h
         src/computeB.h
         src/verifyResult.h
-)
+        src/structures.h)
 
 find_package(MPI REQUIRED)
 target_link_libraries(matFact-mpi PRIVATE MPI::MPI_C)

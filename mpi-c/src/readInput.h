@@ -7,10 +7,14 @@
 #include <string.h>
 #include "mpi.h"
 #include "blockAllocation.h"
+#include "structures.h"
 
 #define ROOT 0
 
 void readInput(const char inputFileName[], const int processId, const int numberOfProcesses) {
+
+    double *MatrixA;
+    int *nonZeroElementIndexes;
 
     int numberOfIterations;
     double convergenceCoefficient;
@@ -20,136 +24,64 @@ void readInput(const char inputFileName[], const int processId, const int number
     int numberOfItems;
     int numberOfNonZeroElements;
 
+
     const char space[2] = " ";
     char *token;
-
-    double *MatrixA;
-    char *fileCopy;
-
+//
     int maxDoubleSize = snprintf(NULL, 0, "%d", (int) DBL_MAX);
     int maxLineSize = 3 * maxDoubleSize + 2 + 1;
-    char line[maxLineSize];
+//    char line[maxLineSize];
 
-    int totalNumberOfLines;
-
-    if (processId == ROOT) {
-        totalNumberOfLines = 0;
-        FILE *inputFilePointer;
-
-        inputFilePointer = fopen(inputFileName, "r");
-        if (inputFilePointer) {
-            while (fgets(line, maxLineSize, inputFilePointer) != NULL) {
-                totalNumberOfLines++;
-            }
-            fclose(inputFilePointer);
-        }
-
-        fileCopy = (char *) malloc(totalNumberOfLines * maxLineSize * sizeof(char));
-    }
-
-    MPI_Bcast(&totalNumberOfLines, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if (processId == ROOT) {
-        int lineNumber = 0;
-        FILE *inputFilePointer;
-
-        inputFilePointer = fopen(inputFileName, "r");
-        if (inputFilePointer) {
-            while (fgets(line, maxLineSize, inputFilePointer) != NULL) {
-                for (int j = 0; j <= maxLineSize; j++) {
-                    fileCopy[lineNumber * maxLineSize + j] = '\0';
-                }
-
-                for (int j = 0; j < strlen(line); j++) {
-                    fileCopy[lineNumber * maxLineSize + j] = line[j];
-                }
-
-//                for (int j = 0; j < maxLineSize; j++) {
-//                    printf("%c", fileCopy[lineNumber * maxLineSize + j]);
-//                    fflush(stdout)
-//                }
-
-                lineNumber++;
-            }
-            fclose(inputFilePointer);
-        }
-
-    }
-//    printf("totalNumberOfLines: %d\n", totalNumberOfLines);
-//                    fflush(stdout)
-
-    if (processId != ROOT) {
-        fileCopy = (char *) malloc(totalNumberOfLines * maxLineSize * sizeof(char));
-    }
+    struct fileCopy *fc = createFileCopy(fc, inputFileName);
+    struct configuration c;
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    MPI_Bcast(fileCopy, maxLineSize * totalNumberOfLines, MPI_CHAR, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast((void *) (fc->content), maxLineSize * fc->totalNumberOfLines, MPI_CHAR, ROOT, MPI_COMM_WORLD);
 
     MPI_Barrier(MPI_COMM_WORLD);
-//    for (int i = 0; i < totalNumberOfLines; i++) {
-//        for (int j = 0; j < maxLineSize; j++) {
-//            printf("%c", fileCopy[i * maxLineSize + j]);
-//                    fflush(stdout)
-//        }
-//    }
-
-//    printf("totalNumberOfLines: %d\n", totalNumberOfLines);
-//    printf("processId: %d in %d\n", processId, numberOfProcesses);
-//    fflush(stdout);
-
-//    for (int m = 0; m < totalNumberOfLines; m++) {
-//        for (int j = 0; j < maxLineSize; j++) {
-//            printf("%c", fileCopy[m * maxLineSize + j]);
-//            fflush(stdout);
-//        }
-//        printf("\n");
-//        fflush(stdout);
-//    }
 
     for (int i = 0; i < 4; i++) {
         int tokenCount = 0;
-        char *rest = &fileCopy[i * maxLineSize];
+        char *rest = &(fc->content)[i * maxLineSize];
         while ((token = strtok_r(rest, space, &rest))) {
-//                printf("Token: %s\n", token);
-//                    fflush(stdout)
+            switch (i) {
+                case 0:
+                    numberOfIterations = atoi(token);
+                    break;
+                case 1:
+                    convergenceCoefficient = strtod(token, &token);
+                    break;
+                case 2:
+                    numberOfFeatures = atoi(token);
+                    break;
+                case 3:
+                    switch (tokenCount) {
+                        case 0:
+                            numberOfUsers = atoi(token);
+                            break;
+                        case 1:
+                            numberOfItems = atoi(token);
+                            break;
+                        case 2:
 
-            if (i == 0) {
-                numberOfIterations = atoi(token);
-//                    printf("numberOfIterations: %d\n", numberOfIterations);
-//                    fflush(stdout)
-            }
-            if (i == 1) {
-                convergenceCoefficient = strtod(token, &token);
-//                    printf("convergenceCoefficient: %f\n", convergenceCoefficient);
-//                    fflush(stdout)
-            }
-            if (i == 2) {
-                numberOfFeatures = atoi(token);
-//                    printf("numberOfFeatures: %d\n", numberOfFeatures);
-//                    fflush(stdout)
-            }
-            if (i == 3) {
-                if (tokenCount == 0) {
-                    numberOfUsers = atoi(token);
-//                        printf("numberOfUsers: %d\n", numberOfUsers);
-//                    fflush(stdout)
-                }
-                if (tokenCount == 1) {
-                    numberOfItems = atoi(token);
-//                        printf("numberOfItems: %d\n", numberOfItems);
-//                    fflush(stdout)
-                }
-                if (tokenCount == 2) {
-                    numberOfNonZeroElements = atoi(token);
-//                        printf("numberOfNonZeroElements: %d\n", numberOfNonZeroElements);
-//                    fflush(stdout)
-                }
+                            numberOfNonZeroElements = atoi(token);
+                            break;
+                    }
+                    break;
             }
             tokenCount++;
         }
     }
+
+
+
+    c.numberOfIterations = numberOfIterations;
+    c.convergenceCoefficient = convergenceCoefficient;
+    c.numberOfFeatures = numberOfFeatures;
+    c.numberOfUsers = numberOfUsers;
+    c.numberOfItems = numberOfItems;
+    c.numberOfNonZeroElements = numberOfNonZeroElements;
 
     MatrixA = (double *) malloc(numberOfUsers * numberOfItems * sizeof(double));
 
@@ -159,42 +91,32 @@ void readInput(const char inputFileName[], const int processId, const int number
         }
     }
 
-    printf("processId: %d\n", processId);
-    fflush(stdout);
-
     MPI_Barrier(MPI_COMM_WORLD);
 
-
-    for (int k = 4; k < totalNumberOfLines; k++) {
+    for (int k = 4; k < fc->totalNumberOfLines; k++) {
         int tokenCount = 0;
-        char *rest = &fileCopy[k * maxLineSize];
+        char *rest = &(fc->content)[k * maxLineSize];
 
         int userIndex;
         int itemIndex;
         double nonZeroElement;
 
         while ((token = strtok_r(rest, space, &rest))) {
-//                printf("Token: %s\n", token);
-
-            if (tokenCount == 0) {
-                userIndex = atoi(token);
-//                    printf("userIndex: %d\n", userIndex);
-            }
-
-            if (tokenCount == 1) {
-                itemIndex = atoi(token);
-//                    printf("itemIndex: %d\n", itemIndex);
-            }
-
-            if (tokenCount == 2) {
-                nonZeroElement = strtod(token, &token);
-//                    printf("nonZeroElement: %f\n", nonZeroElement);
+            switch (tokenCount) {
+                case 0:
+                    userIndex = atoi(token);
+                    break;
+                case 1:
+                    itemIndex = atoi(token);
+                    break;
+                case 2:
+                    nonZeroElement = strtod(token, &token);
+                    break;
             }
             tokenCount++;
         }
         MatrixA[userIndex * numberOfItems + itemIndex] = nonZeroElement;
     }
-    free(fileCopy);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -202,19 +124,20 @@ void readInput(const char inputFileName[], const int processId, const int number
 
     MPI_Reduce(MatrixA, A, numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, ROOT, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
+
+//    if (processId == ROOT) {
+//        for (int l = 0; l < numberOfUsers; l++) {
+//            for (int i = 0; i < numberOfItems; i++) {
+//                printf("%f ", MatrixA[l * numberOfItems + i]);
+//                fflush(stdout);
+//            }
+//            printf("\n");
+//            fflush(stdout);
+//        }
+//    }
+    free(A);
     free(MatrixA);
 
-    if (processId == ROOT) {
-        for (int l = 0; l < numberOfUsers; l++) {
-            for (int i = 0; i < numberOfItems; i++) {
-                printf("%f ", MatrixA[l * numberOfItems + i]);
-                fflush(stdout);
-            }
-            printf("\n");
-            fflush(stdout);
-        }
-    }
-    free(A);
 }
 
 

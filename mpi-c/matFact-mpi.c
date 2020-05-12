@@ -1,10 +1,10 @@
 #include "mpi.h"
 #include "src/readInput.h"
+#include "src/structures.h"
 //#include "src/initialLR.h"
 //#include "src/updateLR.h"
 //#include "src/filterFinalMatrix.h"
 //#include "src/verifyResult.h"
-
 
 
 //#include "cstdio"
@@ -13,38 +13,32 @@
 
 int main(int argc, char *argv[]) {
 
-    MPI_Status status;
     int processId, numberOfProcesses;
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcesses);
     MPI_Comm_rank(MPI_COMM_WORLD, &processId);
-    MPI_Barrier(MPI_COMM_WORLD);
 
+    MPI_Barrier(MPI_COMM_WORLD);
     double begin = MPI_Wtime();
 
     int numberOfIterations;
-    int numberOfFeatures;
     double convergenceCoefficient;
+    int numberOfFeatures;
 
     int numberOfUsers;
     int numberOfItems;
     int numberOfNonZeroElements;
 
-//    std::vector<std::vector<double>> A;
-//    std::vector<std::vector<int>> nonZeroElementIndexes;
-//    int nonZeroElementIndexes[][2];
-
+//    double *MatrixA;
+//    int *nonZeroElementIndexes;
 
     readInput(argv[1], processId, numberOfProcesses);
 
-    double read_input = MPI_Wtime();
-
-//        printf("Elapsed time is %f\n", read_input - begin);
-
-
     MPI_Barrier(MPI_COMM_WORLD);
+    double read_input = MPI_Wtime();
+    printf("Elapsed time is %f\n", read_input - begin);
 
-    MPI_Finalize();
+
 
 
 
@@ -103,6 +97,10 @@ int main(int argc, char *argv[]) {
 //    logResults << double(end - begin);
 //    logResults << std::endl;
 //    logResults.close();
+
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
 
     return 0;
 }
