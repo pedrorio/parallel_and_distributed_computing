@@ -32,12 +32,16 @@ void readInput(const char inputFileName[], const int processId, const int number
     int maxLineSize = 3 * maxDoubleSize + 2 + 1;
 //    char line[maxLineSize];
 
-    struct fileCopy *fc = createFileCopy(fc, inputFileName);
-    struct configuration c;
+    struct fileCopy *fc;
+
+
+    fc = createFileCopy(fc, inputFileName);
+
+    struct configuration conf;
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    MPI_Bcast((void *) (fc->content), maxLineSize * fc->totalNumberOfLines, MPI_CHAR, ROOT, MPI_COMM_WORLD);
+//    MPI_Bcast((void *) (fc->content), maxLineSize * fc->totalNumberOfLines, MPI_CHAR, ROOT, MPI_COMM_WORLD);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -47,25 +51,25 @@ void readInput(const char inputFileName[], const int processId, const int number
         while ((token = strtok_r(rest, space, &rest))) {
             switch (i) {
                 case 0:
-                    numberOfIterations = atoi(token);
+                    conf.numberOfIterations = atoi(token);
                     break;
                 case 1:
-                    convergenceCoefficient = strtod(token, &token);
+                    conf.convergenceCoefficient = strtod(token, &token);
                     break;
                 case 2:
-                    numberOfFeatures = atoi(token);
+                    conf.numberOfFeatures = atoi(token);
                     break;
                 case 3:
                     switch (tokenCount) {
                         case 0:
-                            numberOfUsers = atoi(token);
+                            conf.numberOfUsers = atoi(token);
                             break;
                         case 1:
-                            numberOfItems = atoi(token);
+                            conf.numberOfItems = atoi(token);
                             break;
                         case 2:
 
-                            numberOfNonZeroElements = atoi(token);
+                            conf.numberOfNonZeroElements = atoi(token);
                             break;
                     }
                     break;
@@ -74,20 +78,11 @@ void readInput(const char inputFileName[], const int processId, const int number
         }
     }
 
+    MatrixA = (double *) malloc(conf.numberOfUsers * conf.numberOfItems * sizeof(double));
 
-
-    c.numberOfIterations = numberOfIterations;
-    c.convergenceCoefficient = convergenceCoefficient;
-    c.numberOfFeatures = numberOfFeatures;
-    c.numberOfUsers = numberOfUsers;
-    c.numberOfItems = numberOfItems;
-    c.numberOfNonZeroElements = numberOfNonZeroElements;
-
-    MatrixA = (double *) malloc(numberOfUsers * numberOfItems * sizeof(double));
-
-    for (int l = 0; l < numberOfUsers; l++) {
-        for (int i = 0; i < numberOfItems; i++) {
-            MatrixA[l * numberOfItems + i] = (double) 0;
+    for (int l = 0; l < conf.numberOfUsers; l++) {
+        for (int i = 0; i < conf.numberOfItems; i++) {
+            MatrixA[l * conf.numberOfItems + i] = (double) 0;
         }
     }
 
@@ -115,20 +110,20 @@ void readInput(const char inputFileName[], const int processId, const int number
             }
             tokenCount++;
         }
-        MatrixA[userIndex * numberOfItems + itemIndex] = nonZeroElement;
+        MatrixA[userIndex * conf.numberOfItems + itemIndex] = nonZeroElement;
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    double *A = (double *) malloc(numberOfUsers * numberOfItems * sizeof(double));
+    double *A = (double *) malloc(conf.numberOfUsers * conf.numberOfItems * sizeof(double));
 
-    MPI_Reduce(MatrixA, A, numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, ROOT, MPI_COMM_WORLD);
+    MPI_Reduce(MatrixA, A, conf.numberOfUsers * conf.numberOfItems, MPI_DOUBLE, MPI_MAX, ROOT, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
 
 //    if (processId == ROOT) {
-//        for (int l = 0; l < numberOfUsers; l++) {
-//            for (int i = 0; i < numberOfItems; i++) {
-//                printf("%f ", MatrixA[l * numberOfItems + i]);
+//        for (int l = 0; l < conf.numberOfUsers; l++) {
+//            for (int i = 0; i < conf.numberOfItems; i++) {
+//                printf("%f ", MatrixA[l * conf.numberOfItems + i]);
 //                fflush(stdout);
 //            }
 //            printf("\n");
@@ -137,6 +132,7 @@ void readInput(const char inputFileName[], const int processId, const int number
 //    }
     free(A);
     free(MatrixA);
+    free(fc);
 
 }
 

@@ -32,7 +32,11 @@ int main(int argc, char *argv[]) {
 //    double *MatrixA;
 //    int *nonZeroElementIndexes;
 
+    printf("HELLO");
+
     readInput(argv[1], processId, numberOfProcesses);
+
+    printf("HELLO");
 
     MPI_Barrier(MPI_COMM_WORLD);
     double read_input = MPI_Wtime();
