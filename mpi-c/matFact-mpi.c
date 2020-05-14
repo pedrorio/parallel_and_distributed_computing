@@ -32,11 +32,12 @@ int main(int argc, char *argv[]) {
 //    double *MatrixA;
 //    int *nonZeroElementIndexes;
 
-    printf("HELLO");
+//    printf("HELLO");
 
-    readInput(argv[1], processId, numberOfProcesses);
+//    ConfigurationData confData =
+            readInput(argv[1], processId, numberOfProcesses);
 
-    printf("HELLO");
+//    printf("HELLO");
 
     MPI_Barrier(MPI_COMM_WORLD);
     double read_input = MPI_Wtime();
@@ -101,6 +102,8 @@ int main(int argc, char *argv[]) {
 //    logResults << double(end - begin);
 //    logResults << std::endl;
 //    logResults.close();
+
+//    free(&confData);
 
 
     MPI_Barrier(MPI_COMM_WORLD);

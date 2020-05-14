@@ -11,6 +11,7 @@
 
 #define ROOT 0
 
+//ConfigurationData
 void readInput(const char inputFileName[], const int processId, const int numberOfProcesses) {
 
     double *MatrixA;
@@ -64,7 +65,7 @@ void readInput(const char inputFileName[], const int processId, const int number
         fclose(inputFile);
     }
 
-    struct configuration conf;
+//    struct configuration conf;
 
     MPI_Barrier(MPI_COMM_WORLD);
 
@@ -79,23 +80,30 @@ void readInput(const char inputFileName[], const int processId, const int number
             switch (i) {
                 case 0:
                     numberOfIterations = atoi(token);
+                    printf("numberOfIterations: %d\n", numberOfIterations);
                     break;
                 case 1:
                     convergenceCoefficient = strtod(token, &token);
+                    printf("convergenceCoefficient: %f\n", convergenceCoefficient);
                     break;
                 case 2:
                     numberOfFeatures = atoi(token);
+                    printf("numberOfFeatures: %d\n", numberOfFeatures);
+
                     break;
                 case 3:
                     switch (tokenCount) {
                         case 0:
                             numberOfUsers = atoi(token);
+                            printf("numberOfUsers: %d\n", numberOfUsers);
                             break;
                         case 1:
                             numberOfItems = atoi(token);
+                            printf("numberOfItems: %d\n", numberOfItems);
                             break;
                         case 2:
                             numberOfNonZeroElements = atoi(token);
+                            printf("numberOfNonZeroElements: %d\n", numberOfNonZeroElements);
                             break;
                     }
                     break;
@@ -126,12 +134,15 @@ void readInput(const char inputFileName[], const int processId, const int number
             switch (tokenCount) {
                 case 0:
                     userIndex = atoi(token);
+                    printf("userIndex: %d\n", userIndex);
                     break;
                 case 1:
                     itemIndex = atoi(token);
+                    printf("itemIndex: %d\n", itemIndex);
                     break;
                 case 2:
                     nonZeroElement = strtod(token, &token);
+                    printf("nonZeroElement: %d\n", nonZeroElement);
                     break;
             }
             tokenCount++;
@@ -145,6 +156,19 @@ void readInput(const char inputFileName[], const int processId, const int number
 
     MPI_Reduce(MatrixA, A, numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, ROOT, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
+
+//    ConfigurationData *confData = createConfigurationData(confData, numberOfIterations, convergenceCoefficient,
+//                                                         numberOfFeatures, numberOfUsers, numberOfItems,
+//                                                         numberOfNonZeroElements);
+
+//    ConfigurationData confData;
+//
+//    confData.numberOfNonZeroElements = numberOfNonZeroElements;
+//    confData.convergenceCoefficient = convergenceCoefficient;
+//    confData.numberOfFeatures = numberOfFeatures;
+//    confData.numberOfUsers = numberOfUsers;
+//    confData.numberOfItems = numberOfItems;
+//    confData.numberOfNonZeroElements = numberOfNonZeroElements;
 
 //    if (processId == ROOT) {
 //        for (int l = 0; l < conf.numberOfUsers; l++) {
@@ -160,6 +184,7 @@ void readInput(const char inputFileName[], const int processId, const int number
     free(MatrixA);
     free(fileCopy);
 
+//    return confData;
 }
 
 

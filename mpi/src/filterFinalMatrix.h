@@ -5,8 +5,11 @@
 #include <algorithm>
 
 void filterFinalMatrix(std::vector<std::vector<double>> &A, std::vector<std::vector<double>> &B,
-                       std::vector<std::vector<int>> &nonZeroElementIndexes,
-                       std::vector<std::vector<double>> &L, std::vector<std::vector<double>> &R,
+                       std::vector<int> &nonZeroUserIndexes,
+                       std::vector<int> &nonZeroItemIndexes,
+                       std::vector<double> &nonZeroElements,
+                       std::vector<std::vector<double>> &L,
+                       std::vector<std::vector<double>> &R,
                        int &numberOfUsers, int &numberOfItems, int &numberOfFeatures,
                        int &numberOfNonZeroElements,
                        std::vector<int> &BV);
