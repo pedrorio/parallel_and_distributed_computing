@@ -15,7 +15,7 @@
 
 int main(int argc, char *argv[]) {
 
-    time_t begin = omp_get_wtime();
+//    time_t begin = omp_get_wtime();
 
     double read_input;
     double initial_lr;
@@ -23,17 +23,17 @@ int main(int argc, char *argv[]) {
     double filter_final_matrix;
     double total_time;
 
-    int processId = 0;
-    int numberOfProcesses = 1;
+//    int processId = 0;
+//    int numberOfProcesses = 1;
 //    int processId, numberOfProcesses;
 
     // TODO
-    //    int processId, numberOfProcesses;
-    //    MPI_Init(&argc, &argv);
-    //    MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcesses);
-    //    MPI_Comm_rank(MPI_COMM_WORLD, &processId);
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //    double start_time = MPI_Wtime();
+    int processId, numberOfProcesses;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcesses);
+    MPI_Comm_rank(MPI_COMM_WORLD, &processId);
+    MPI_Barrier(MPI_COMM_WORLD);
+    double start_time = MPI_Wtime();
 
     int numberOfIterations;
     int numberOfFeatures;
@@ -55,28 +55,28 @@ int main(int argc, char *argv[]) {
               numberOfUsers, numberOfItems,
               numberOfNonZeroElements, processId, numberOfProcesses);
 
-    // TODO
-    //    if (processId == ROOT) {
-    //        read_input = MPI_Wtime();
-    //        printf("[readInput][%d] %f\n", processId, read_input - start_time);
-    //        fflush(stdout);
-    //    }
-    printf("[readInput]\n");
-    fflush(stdout);
+//     TODO
+//    if (processId == ROOT) {
+        read_input = MPI_Wtime();
+        printf("[readInput][%d] %f\n", processId, read_input - start_time);
+        fflush(stdout);
+//    }
+//    printf("[readInput]\n");
+//    fflush(stdout);
 
     std::vector<std::vector<double>> L(numberOfUsers, std::vector<double>(numberOfFeatures));
     std::vector<std::vector<double>> R(numberOfFeatures, std::vector<double>(numberOfItems));
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
-    // TODO
-    //    if (processId == ROOT) {
-    //        initial_lr = MPI_Wtime();
-    //        printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
-    //        fflush(stdout);
-    //    }
-    printf("[initialLR]\n");
-    fflush(stdout);
+//     TODO
+//    if (processId == ROOT) {
+        initial_lr = MPI_Wtime();
+        printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
+        fflush(stdout);
+//    }
+//    printf("[initialLR]\n");
+//    fflush(stdout);
 
     std::vector<std::vector<double>> B(numberOfUsers, std::vector<double>(numberOfItems, 0));
     std::vector<std::vector<double>> StoreL;
@@ -99,13 +99,13 @@ int main(int argc, char *argv[]) {
     }
 
     // TODO
-    //    if (processId == ROOT) {
-    //        update_lr = MPI_Wtime();
-    //        printf("[updateLR][%d] %f\n", processId, update_lr - initial_lr);
-    //        fflush(stdout);
-    //    }
-    printf("[updateLR]\n");
-    fflush(stdout);
+//    if (processId == ROOT) {
+        update_lr = MPI_Wtime();
+        printf("[updateLR][%d] %f\n", processId, update_lr - initial_lr);
+        fflush(stdout);
+//    }
+//    printf("[updateLR]\n");
+//    fflush(stdout);
     ////    time_t final_filtering = omp_get_wtime();
 
     std::vector<int> BV(numberOfUsers);
@@ -120,23 +120,23 @@ int main(int argc, char *argv[]) {
 
 //    TODO
 //    if (processId == ROOT) {
-//    filter_final_matrix = MPI_Wtime();
-//    printf("[filterFinalMatrix][%d] %f\n", processId, filter_final_matrix - update_lr);
-//    fflush(stdout);
+        filter_final_matrix = MPI_Wtime();
+        printf("[filterFinalMatrix][%d] %f\n", processId, filter_final_matrix - update_lr);
+        fflush(stdout);
 //    }
-    printf("[filterFinalMatrix]\n");
-    fflush(stdout);
+//    printf("[filterFinalMatrix]\n");
+//    fflush(stdout);
 //    time_t end = omp_get_wtime();
 //    std::ofstream logResults("../helpers/comparison.csv", std::ios::app);
 //    logResults << inputFileName << ", ";
 //    logResults << std::getenv("OMP_NUM_THREADS") << ", ";
 //
     // TODO
-    //    if (processId == ROOT) {
-    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-    int numberOfErrors = verifyResult(outputFileName, BV);
-    std::cout << "[Errors] " << numberOfErrors << std::endl;
-    //    }
+    if (processId == ROOT) {
+        std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
+        int numberOfErrors = verifyResult(outputFileName, BV);
+        std::cout << "[Errors] " << numberOfErrors << std::endl;
+    }
 
 //    logResults << numberOfErrors << ", ";
 //    logResults << numberOfUsers << ", ";
@@ -153,17 +153,17 @@ int main(int argc, char *argv[]) {
 
 // TODO
 //    if (processId == ROOT) {
-//    total_time = MPI_Wtime();
-//    printf("[Total][%d] %f\n", processId, total_time - start_time);
-//    fflush(stdout);
+        total_time = MPI_Wtime();
+        printf("[Total][%d] %f\n", processId, total_time - start_time);
+        fflush(stdout);
 //    }
-//    MPI_Barrier(MPI_COMM_WORLD);
-//    MPI_Finalize();
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
 
 //    printf("[Final]\n");
 //    fflush(stdout);
 
-    time_t end = omp_get_wtime();
-    std::cout << "[Final] " << double(end - begin);
+//    time_t end = omp_get_wtime();
+//    std::cout << "[Final] " << double(end - begin);
     return 0;
 }
