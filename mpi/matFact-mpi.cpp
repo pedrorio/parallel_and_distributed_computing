@@ -64,10 +64,14 @@ int main(int argc, char *argv[]) {
 //    printf("[readInput]\n");
 //    fflush(stdout);
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
+
     std::vector<std::vector<double>> L(numberOfUsers, std::vector<double>(numberOfFeatures));
     std::vector<std::vector<double>> R(numberOfFeatures, std::vector<double>(numberOfItems));
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
+
 
 //     TODO
 //    if (processId == ROOT) {
