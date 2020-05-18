@@ -58,6 +58,11 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
         }
     }
 
+
+    MPI_Bcast(&numberOfIterations, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast(&convergenceCoefficient, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast(&numberOfFeatures, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+
     MPI_Bcast(&numberOfUsers, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfItems, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfNonZeroElements, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
@@ -72,7 +77,6 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
     std::vector<double> ResizeElements(numberOfNonZeroElements);
     nonZeroElements = ResizeElements;
 
-    // TODO
     if (processId == ROOT) {
         for (int m = 0; m < numberOfNonZeroElements; m++) {
             line = fileCopy[m + 4];
@@ -91,10 +95,6 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    // TODO
-    MPI_Bcast(&numberOfNonZeroElements, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-
-    // TODO: DIVIDE THIS
     MPI_Scatter(&nonZeroUserIndexes[BLOCK_LOW(processId, numberOfProcesses, numberOfNonZeroElements)],
                 BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements), MPI_INT, &nonZeroUserIndexes[0],
                 BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements), MPI_INT, ROOT, MPI_COMM_WORLD);
