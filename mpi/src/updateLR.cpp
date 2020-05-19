@@ -11,12 +11,12 @@ void updateLR(double *&A,
               double &convergenceCoefficient) {
 
     double prediction[numberOfNonZeroElements];
-    for (int i = 0; i < numberOfNonZeroElements; ++i) {
+    for (int i = 0; i < numberOfNonZeroElements; i++) {
         prediction[i] = 0;
     }
 
     double delta[numberOfNonZeroElements];
-    for (int i = 0; i < numberOfNonZeroElements; ++i) {
+    for (int i = 0; i < numberOfNonZeroElements; i++) {
         delta[i] = 0;
     }
 

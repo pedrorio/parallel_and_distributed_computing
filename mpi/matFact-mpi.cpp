@@ -16,16 +16,10 @@
 
 int main(int argc, char *argv[]) {
 
-    auto *A = new double[0];
-    auto *nonZeroUserIndexes = new int[0];
-    auto *nonZeroItemIndexes = new int[0];
-    auto *nonZeroElements = new double[0];
-
-//    testFunc(A);
-
-//    for (int i = 0; i < 20; ++i) {
-//        std::cout << i << std::endl;
-//    }
+    auto *A = new double[1];
+    auto *nonZeroUserIndexes = new int[1];
+    auto *nonZeroItemIndexes = new int[1];
+    auto *nonZeroElements = new double[1];
 
 //    time_t begin = omp_get_wtime();
 
@@ -35,11 +29,6 @@ int main(int argc, char *argv[]) {
     double filter_final_matrix;
     double total_time;
 
-//    int processId = 0;
-//    int numberOfProcesses = 1;
-//    int processId, numberOfProcesses;
-
-    // TODO
     int processId, numberOfProcesses;
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcesses);
@@ -55,11 +44,6 @@ int main(int argc, char *argv[]) {
     int numberOfItems;
     int numberOfNonZeroElements;
 
-//    std::vector<std::vector<double>> A;
-//    std::vector<int> nonZeroUserIndexes;
-//    std::vector<int> nonZeroItemIndexes;
-//    std::vector<double> nonZeroElements;
-
     std::string inputFileName = argv[1];
 
     readInput(inputFileName, A, nonZeroUserIndexes, nonZeroItemIndexes, nonZeroElements,
@@ -67,35 +51,46 @@ int main(int argc, char *argv[]) {
               numberOfUsers, numberOfItems,
               numberOfNonZeroElements, processId, numberOfProcesses);
 
-//     TODO
-//    if (processId == ROOT) {
-        read_input = MPI_Wtime();
-        printf("[readInput][%d] %f\n", processId, read_input - start_time);
-        fflush(stdout);
-//    }
-//    printf("[readInput]\n");
-//    fflush(stdout);
+    read_input = MPI_Wtime();
+    printf("[readInput][%d] %f\n", processId, read_input - start_time);
+    fflush(stdout);
+
+    // READ INPUT IS OK
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-
-//    std::vector<std::vector<double>> L(numberOfUsers, std::vector<double>(numberOfFeatures));
-//    std::vector<std::vector<double>> R(numberOfFeatures, std::vector<double>(numberOfItems));
-
     auto *L = new double[numberOfUsers * numberOfFeatures];
+    for (int k = 0; k < numberOfUsers * numberOfFeatures; k++) {
+        L[k] = 0;
+    }
+
     auto *R = new double[numberOfFeatures * numberOfItems];
+    for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
+        R[k] = 0;
+    }
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
+    for (int i = 0; i < numberOfUsers; i++) {
+        for (int j = 0; j < numberOfFeatures; ++j) {
+        std::cout<< L[i * numberOfFeatures + j] << " ";
+        }
+        std::cout<< std::endl;
+    }
 
-//     TODO
-//    if (processId == ROOT) {
-        initial_lr = MPI_Wtime();
-        printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
-        fflush(stdout);
-//    }
-//    printf("[initialLR]\n");
-//    fflush(stdout);
+    for (int i = 0; i < numberOfFeatures; i++) {
+        for (int j = 0; j < numberOfItems; ++j) {
+            std::cout<< R[i * numberOfItems + j] << " ";
+        }
+        std::cout<< std::endl;
+    }
+
+    // INITIAL LR IS OK
+
+    initial_lr = MPI_Wtime();
+    printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
+    fflush(stdout);
+
 
     auto *B = new double[numberOfUsers * numberOfItems];
     for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
@@ -103,12 +98,17 @@ int main(int argc, char *argv[]) {
     }
 
     auto *StoreL = new double[numberOfUsers * numberOfFeatures];
+    for (int k = 0; k < numberOfUsers * numberOfFeatures; k++) {
+        StoreL[k] = 0;
+    }
+
     auto *StoreR = new double[numberOfFeatures * numberOfItems];
-//    std::vector<std::vector<double>> StoreL;
-//    std::vector<std::vector<double>> StoreR;
-//
+    for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
+        StoreR[k] = 0;
+    }
+
 ////    time_t initial_l_r = omp_get_wtime();
-//
+
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
         StoreR = R;
         StoreL = L;
@@ -123,22 +123,16 @@ int main(int argc, char *argv[]) {
                  convergenceCoefficient);
     }
 
-    // TODO
-//    if (processId == ROOT) {
-        update_lr = MPI_Wtime();
-        printf("[updateLR][%d] %f\n", processId, update_lr - initial_lr);
-        fflush(stdout);
-//    }
-//    printf("[updateLR]\n");
-//    fflush(stdout);
+    update_lr = MPI_Wtime();
+    printf("[updateLR][%d] %f\n", processId, update_lr - initial_lr);
+    fflush(stdout);
     ////    time_t final_filtering = omp_get_wtime();
-
-//    std::vector<int> BV(numberOfUsers);
 
     auto *BV = new int[numberOfUsers];
     for (int k = 0; k < numberOfUsers; k++) {
         BV[k] = 0;
     }
+
     filterFinalMatrix(A, B,
                       nonZeroUserIndexes,
                       nonZeroItemIndexes,
@@ -148,25 +142,19 @@ int main(int argc, char *argv[]) {
                       numberOfNonZeroElements,
                       BV);
 
-//    TODO
-//    if (processId == ROOT) {
-        filter_final_matrix = MPI_Wtime();
-//        printf("[filterFinalMatrix][%d] %f\n", processId, filter_final_matrix - update_lr);
-//        fflush(stdout);
-//    }
-//    printf("[filterFinalMatrix]\n");
-//    fflush(stdout);
+    filter_final_matrix = MPI_Wtime();
+    printf("[filterFinalMatrix][%d] %f\n", processId, filter_final_matrix - update_lr);
+    fflush(stdout);
+
 //    time_t end = omp_get_wtime();
 //    std::ofstream logResults("../helpers/comparison.csv", std::ios::app);
 //    logResults << inputFileName << ", ";
 //    logResults << std::getenv("OMP_NUM_THREADS") << ", ";
 //
-    // TODO
-    if (processId == ROOT) {
-        std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-        int numberOfErrors = verifyResult(outputFileName, BV);
-        std::cout << "[Errors] " << numberOfErrors << std::endl;
-    }
+
+    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
+    int numberOfErrors = verifyResult(outputFileName, BV);
+    std::cout << "[Errors] " << numberOfErrors << std::endl;
 
 //    logResults << numberOfErrors << ", ";
 //    logResults << numberOfUsers << ", ";
@@ -180,18 +168,13 @@ int main(int argc, char *argv[]) {
 //    logResults << double(end - begin);
 //    logResults << std::endl;
 //    logResults.close();
+//
+//    total_time = MPI_Wtime();
+//    printf("[Total][%d] %f\n", processId, total_time - start_time);
+//    fflush(stdout);
 
-// TODO
-//    if (processId == ROOT) {
-        total_time = MPI_Wtime();
-        printf("[Total][%d] %f\n", processId, total_time - start_time);
-        fflush(stdout);
-//    }
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
-
-//    printf("[Final]\n");
-//    fflush(stdout);
 
 //    time_t end = omp_get_wtime();
 //    std::cout << "[Final] " << double(end - begin);
