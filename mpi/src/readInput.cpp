@@ -7,11 +7,16 @@
 #define BLOCK_SIZE(id, p, n) (BLOCK_HIGH(id,p,n) - BLOCK_LOW(id,p,n) + 1)
 #define BLOCK_OWNER(index, p, n) (((p)*((index)+1)-1)/(n))
 
-void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
-               std::vector<int> &nonZeroUserIndexes, std::vector<int> &nonZeroItemIndexes,
-               std::vector<double> &nonZeroElements,
+void readInput(std::string &inputFileName, double *&A,
+               int *&nonZeroUserIndexes, int *&nonZeroItemIndexes,
+               double *&nonZeroElements,
                int &numberOfIterations, int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers,
                int &numberOfItems, int &numberOfNonZeroElements, int &processId, int &numberOfProcesses) {
+
+    delete[] A;
+    delete[] nonZeroUserIndexes;
+    delete[] nonZeroItemIndexes;
+    delete[] nonZeroElements;
 
     std::vector<std::string> fileCopy;
     std::string line;
@@ -67,23 +72,31 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
     MPI_Bcast(&numberOfNonZeroElements, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
 
-    double ResultA[numberOfUsers][numberOfItems];
-    double StoreA[numberOfUsers][numberOfItems];
-    for (int n = 0; n < numberOfUsers; n++) {
-        for (int i = 0; i < numberOfItems; i++) {
-            StoreA[n][i] = 0;
-        }
+//    double ResultA[numberOfUsers][numberOfItems];
+//    double StoreA[numberOfUsers][numberOfItems];
+//    for (int n = 0; n < numberOfUsers; n++) {
+//        for (int i = 0; i < numberOfItems; i++) {
+//            StoreA[n][i] = 0;
+//        }
+//    }
+
+//    std::vector<std::vector<double>> ResizeA(numberOfUsers, std::vector<double>(numberOfItems, 0));
+    A = new double[numberOfUsers * numberOfItems];
+//    for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
+//        A[i] = 0;
+//    }
+
+    double StoreA[numberOfUsers * numberOfItems];
+    for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
+        StoreA[i] = 0;
     }
 
-    std::vector<std::vector<double>> ResizeA(numberOfUsers, std::vector<double>(numberOfItems, 0));
-    A = ResizeA;
+//    std::vector<int> ResizeIndexes(numberOfNonZeroElements);
+    nonZeroUserIndexes = new int[numberOfNonZeroElements];
+    nonZeroItemIndexes = new int[numberOfNonZeroElements];
 
-    std::vector<int> ResizeIndexes(numberOfNonZeroElements);
-    nonZeroUserIndexes = ResizeIndexes;
-    nonZeroItemIndexes = ResizeIndexes;
-
-    std::vector<double> ResizeElements(numberOfNonZeroElements);
-    nonZeroElements = ResizeElements;
+//    std::vector<double> ResizeElements(numberOfNonZeroElements);
+    nonZeroElements = new double[numberOfNonZeroElements];
 
     if (processId == ROOT) {
         for (int m = 0; m < numberOfNonZeroElements; m++) {
@@ -131,27 +144,27 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
     int endIndex = startIndex + BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements);
 //    std::vector<std::vector<double>> StoreA(numberOfUsers, std::vector<double>(numberOfItems, 0));
     for (int l = startIndex; l < endIndex; l++) {
-        StoreA[nonZeroUserIndexes[l]][nonZeroItemIndexes[l]] = nonZeroElements[l];
+        StoreA[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = nonZeroElements[l];
 //        std::cout << "process " << processId << " has non zero element = " << nonZeroElements[l] << std::endl;
 //        fflush(stdout);
     }
 
 
-    if (processId == 0) {
-        for (int i = 0; i < numberOfUsers; i++) {
-            for (int j = 0; j < numberOfItems; j++) {
-                std::cout << StoreA[i][j] << " ";
-                fflush(stdout);
-            }
-            std::cout << std::endl;
-            fflush(stdout);
-        }
-    }
+//    if (processId == 0) {
+//        for (int i = 0; i < numberOfUsers; i++) {
+//            for (int j = 0; j < numberOfItems; j++) {
+//                std::cout << StoreA[i][j] << " ";
+//                fflush(stdout);
+//            }
+//            std::cout << std::endl;
+//            fflush(stdout);
+//        }
+//    }
 
     MPI_Barrier(MPI_COMM_WORLD);
 
 //    MPI_Allreduce(&StoreA[0][0], &A[0][0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&StoreA[0][0], &ResultA[0][0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&StoreA[0], &A[0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     printf("process %d ended readInput\n", processId);
     fflush(stdout);
 
@@ -161,7 +174,7 @@ void readInput(std::string &inputFileName, std::vector<std::vector<double>> &A,
     if (processId == 0) {
         for (int i = 0; i < numberOfUsers; i++) {
             for (int j = 0; j < numberOfItems; j++) {
-                std::cout << ResultA[i][j] << " ";
+                std::cout << A[i * numberOfItems + j] << " ";
                 fflush(stdout);
             }
             std::cout << std::endl;

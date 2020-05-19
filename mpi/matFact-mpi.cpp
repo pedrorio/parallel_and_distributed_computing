@@ -16,10 +16,10 @@
 
 int main(int argc, char *argv[]) {
 
-//    auto *A = new double[0];
-//    auto *nonZeroUserIndexes = new int[0];
-//    auto *nonZeroItemIndexes = new int[0];
-//    auto *nonZeroItemIndexes = new int[0];
+    auto *A = new double[0];
+    auto *nonZeroUserIndexes = new int[0];
+    auto *nonZeroItemIndexes = new int[0];
+    auto *nonZeroElements = new double[0];
 
 //    testFunc(A);
 
@@ -55,10 +55,10 @@ int main(int argc, char *argv[]) {
     int numberOfItems;
     int numberOfNonZeroElements;
 
-    std::vector<std::vector<double>> A;
-    std::vector<int> nonZeroUserIndexes;
-    std::vector<int> nonZeroItemIndexes;
-    std::vector<double> nonZeroElements;
+//    std::vector<std::vector<double>> A;
+//    std::vector<int> nonZeroUserIndexes;
+//    std::vector<int> nonZeroItemIndexes;
+//    std::vector<double> nonZeroElements;
 
     std::string inputFileName = argv[1];
 
@@ -79,8 +79,11 @@ int main(int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
 
 
-    std::vector<std::vector<double>> L(numberOfUsers, std::vector<double>(numberOfFeatures));
-    std::vector<std::vector<double>> R(numberOfFeatures, std::vector<double>(numberOfItems));
+//    std::vector<std::vector<double>> L(numberOfUsers, std::vector<double>(numberOfFeatures));
+//    std::vector<std::vector<double>> R(numberOfFeatures, std::vector<double>(numberOfItems));
+
+    auto *L = new double[numberOfUsers * numberOfFeatures];
+    auto *R = new double[numberOfFeatures * numberOfItems];
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
@@ -94,9 +97,15 @@ int main(int argc, char *argv[]) {
 //    printf("[initialLR]\n");
 //    fflush(stdout);
 
-    std::vector<std::vector<double>> B(numberOfUsers, std::vector<double>(numberOfItems, 0));
-    std::vector<std::vector<double>> StoreL;
-    std::vector<std::vector<double>> StoreR;
+    auto *B = new double[numberOfUsers * numberOfItems];
+    for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
+        B[j] = 0;
+    }
+
+    auto *StoreL = new double[numberOfUsers * numberOfFeatures];
+    auto *StoreR = new double[numberOfFeatures * numberOfItems];
+//    std::vector<std::vector<double>> StoreL;
+//    std::vector<std::vector<double>> StoreR;
 //
 ////    time_t initial_l_r = omp_get_wtime();
 //
