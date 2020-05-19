@@ -6,6 +6,7 @@
 #include "src/updateLR.h"
 #include "src/filterFinalMatrix.h"
 #include "src/verifyResult.h"
+#include "src/testFunc.h"
 
 
 #define FIRST_ELEMENT(id, p, n) ((id)*(n)/(p))
@@ -14,6 +15,17 @@
 #define ROOT 0
 
 int main(int argc, char *argv[]) {
+
+//    auto *A = new double[0];
+//    auto *nonZeroUserIndexes = new int[0];
+//    auto *nonZeroItemIndexes = new int[0];
+//    auto *nonZeroItemIndexes = new int[0];
+
+//    testFunc(A);
+
+    for (int i = 0; i < 20; ++i) {
+        std::cout << i << std::endl;
+    }
 
 //    time_t begin = omp_get_wtime();
 
