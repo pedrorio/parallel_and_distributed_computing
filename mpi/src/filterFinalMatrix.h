@@ -12,7 +12,7 @@ void filterFinalMatrix(double *&A, double *&B,
                        double *&R,
                        int &numberOfUsers, int &numberOfItems, int &numberOfFeatures,
                        int &numberOfNonZeroElements,
-                       std::vector<int> &BV);
+                       int *&BV);
 
 
 #endif //SERIAL_FILTERFINALMATRIX_H

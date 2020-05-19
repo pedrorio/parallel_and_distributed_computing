@@ -9,7 +9,7 @@ void filterFinalMatrix(double *&A, double *&B,
                        double *&L, double *&R,
                        int &numberOfUsers, int &numberOfItems, int &numberOfFeatures,
                        int &numberOfNonZeroElements,
-                       std::vector<int> &BV) {
+                       int *&BV) {
 
     computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures, B);
 
@@ -20,7 +20,7 @@ void filterFinalMatrix(double *&A, double *&B,
     for (int i = 0; i < numberOfUsers; i++) {
         double max = 0;
         int maxPosition = 0;
-        for (int j = 0; j < numberOfItems ; ++j) {
+        for (int j = 0; j < numberOfItems; ++j) {
             if (B[i * numberOfItems + j] > max) {
                 B[i * numberOfItems + j] = 0;
 

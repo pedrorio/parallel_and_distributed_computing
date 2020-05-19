@@ -133,7 +133,12 @@ int main(int argc, char *argv[]) {
 //    fflush(stdout);
     ////    time_t final_filtering = omp_get_wtime();
 
-    std::vector<int> BV(numberOfUsers);
+//    std::vector<int> BV(numberOfUsers);
+
+    auto *BV = new int[numberOfUsers];
+    for (int k = 0; k < numberOfUsers; k++) {
+        BV[k] = 0;
+    }
     filterFinalMatrix(A, B,
                       nonZeroUserIndexes,
                       nonZeroItemIndexes,
