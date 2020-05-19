@@ -54,35 +54,25 @@ int main(int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     auto *L = new double[numberOfUsers * numberOfFeatures];
+    auto *StoreL = new double[numberOfUsers * numberOfFeatures];
     for (int k = 0; k < numberOfUsers * numberOfFeatures; k++) {
         L[k] = 0;
+        StoreL[k] = 0;
     }
 
     auto *R = new double[numberOfFeatures * numberOfItems];
+    auto *StoreR = new double[numberOfFeatures * numberOfItems];
     for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
         R[k] = 0;
+        StoreR[k] = 0;
     }
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
+    MPI_Barrier(MPI_COMM_WORLD);
     initial_lr = MPI_Wtime();
     printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
     fflush(stdout);
-
-    auto *B = new double[numberOfUsers * numberOfItems];
-    for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
-        B[j] = 0;
-    }
-
-    auto *StoreL = new double[numberOfUsers * numberOfFeatures];
-    for (int k = 0; k < numberOfUsers * numberOfFeatures; k++) {
-        StoreL[k] = 0;
-    }
-
-    auto *StoreR = new double[numberOfFeatures * numberOfItems];
-    for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
-        StoreR[k] = 0;
-    }
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
         StoreR = R;
@@ -91,16 +81,22 @@ int main(int argc, char *argv[]) {
         updateLR(A,
                  nonZeroUserIndexes,
                  nonZeroItemIndexes,
-                 nonZeroElements,
                  L, R, StoreL, StoreR,
                  numberOfUsers, numberOfItems, numberOfFeatures,
                  numberOfNonZeroElements,
                  convergenceCoefficient);
+
+
     }
 
     update_lr = MPI_Wtime();
     printf("[updateLR][%d] %f\n", processId, update_lr - initial_lr);
     fflush(stdout);
+
+    auto *B = new double[numberOfUsers * numberOfItems];
+    for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
+        B[j] = 0;
+    }
 
     auto *BV = new int[numberOfUsers];
     for (int k = 0; k < numberOfUsers; k++) {
@@ -130,6 +126,16 @@ int main(int argc, char *argv[]) {
 
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
+
+    delete[] A;
+    delete[] B;
+    delete[] BV;
+
+    delete[] StoreL;
+    delete[] StoreR;
+
+//    delete[] L;
+//    delete[] R;
 
     return 0;
 }

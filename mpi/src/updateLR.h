@@ -6,7 +6,6 @@
 void updateLR(double *&A,
               int *&nonZeroUserIndexes,
               int *&nonZeroItemIndexes,
-              double *&nonZeroElements,
               double *&L, double *&R,
               double *&StoreL, double *&StoreR,
               int &numberOfUsers, int &numberOfItems, int &numberOfFeatures,

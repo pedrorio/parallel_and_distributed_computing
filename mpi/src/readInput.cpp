@@ -120,6 +120,8 @@ void readInput(std::string &inputFileName, double *&A,
 
     MPI_Barrier(MPI_COMM_WORLD);
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
     MPI_Bcast(&nonZeroUserIndexes[0],
               numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&nonZeroItemIndexes[0],
@@ -141,16 +143,5 @@ void readInput(std::string &inputFileName, double *&A,
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-//    if (processId == 0) {
-//        for (int i = 0; i < numberOfUsers; i++) {
-//            for (int j = 0; j < numberOfItems; j++) {
-//                std::cout << A[i * numberOfItems + j] << " ";
-//                fflush(stdout);
-//            }
-//            std::cout << std::endl;
-//            fflush(stdout);
-//        }
-//    }
-
-    MPI_Barrier(MPI_COMM_WORLD);
+    delete[] StoreA;
 }
