@@ -13,23 +13,13 @@ void filterFinalMatrix(double *&A, double *&B,
 
     computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures, B);
 
-
-    for (int i = 0; i < numberOfUsers; i++) {
-        for (int j = 0; j < numberOfItems; j++) {
-            std::cout<< B[i * numberOfItems + j] << " ";
-        }
-        std::cout<< std::endl;
-    }
-
-    // FINAL B IS OK
-
     for (int l = 0; l < numberOfNonZeroElements; l++) {
         B[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = 0;
     }
 
     for (int i = 0; i < numberOfUsers; i++) {
         double max = 0;
-        int maxPosition = 0;
+        int maxPosition;
         for (int j = 0; j < numberOfItems; j++) {
             if (B[i * numberOfItems + j] > max) {
                 max = B[i * numberOfItems + j];
@@ -37,10 +27,10 @@ void filterFinalMatrix(double *&A, double *&B,
             } else {
                 continue;
             }
-            BV[i] = maxPosition;
         }
+        BV[i] = maxPosition;
 
-        //std::cout << BV[i] << std::endl;
-    };
-
-};
+        std::cout << BV[i] << std::endl;
+        fflush(stdout);
+    }
+}

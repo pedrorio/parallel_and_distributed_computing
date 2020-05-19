@@ -14,5 +14,4 @@ void filterFinalMatrix(double *&A, double *&B,
                        int &numberOfNonZeroElements,
                        int *&BV);
 
-
 #endif //SERIAL_FILTERFINALMATRIX_H

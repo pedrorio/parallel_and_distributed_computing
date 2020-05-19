@@ -6,5 +6,4 @@
 void computeB(double *&L, double *&R,
               int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, double *&B);
 
-
 #endif //SERIAL_COMPUTEB_H

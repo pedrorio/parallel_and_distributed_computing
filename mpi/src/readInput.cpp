@@ -62,28 +62,13 @@ void readInput(std::string &inputFileName, double *&A,
         }
     }
 
-
     MPI_Bcast(&numberOfIterations, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&convergenceCoefficient, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfFeatures, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-
-
-
     MPI_Bcast(&numberOfUsers, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfItems, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfNonZeroElements, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
-
-
-//    double ResultA[numberOfUsers][numberOfItems];
-//    double StoreA[numberOfUsers][numberOfItems];
-//    for (int n = 0; n < numberOfUsers; n++) {
-//        for (int i = 0; i < numberOfItems; i++) {
-//            StoreA[n][i] = 0;
-//        }
-//    }
-
-//    std::vector<std::vector<double>> ResizeA(numberOfUsers, std::vector<double>(numberOfItems, 0));
     A = new double[numberOfUsers * numberOfItems];
     for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
         A[i] = 0;
@@ -91,19 +76,14 @@ void readInput(std::string &inputFileName, double *&A,
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    auto *StoreA = new double[0];
-    StoreA = new double[numberOfUsers * numberOfItems];
+    auto *StoreA = new double[numberOfUsers * numberOfItems];
 
-
-        for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
-//            printf("Inside Store A\n");
-            StoreA[i] = 0;
-        }
-
-
+    for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
+        StoreA[i] = 0;
+    }
 
     MPI_Barrier(MPI_COMM_WORLD);
-//    std::vector<int> ResizeIndexes(numberOfNonZeroElements);
+
     nonZeroUserIndexes = new int[numberOfNonZeroElements];
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -112,10 +92,9 @@ void readInput(std::string &inputFileName, double *&A,
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-//    std::vector<double> ResizeElements(numberOfNonZeroElements);
     nonZeroElements = new double[numberOfNonZeroElements];
-    MPI_Barrier(MPI_COMM_WORLD);
 
+    MPI_Barrier(MPI_COMM_WORLD);
 
     for (int i = 0; i < numberOfNonZeroElements; i++) {
         nonZeroUserIndexes[i] = 0;
@@ -141,21 +120,6 @@ void readInput(std::string &inputFileName, double *&A,
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-//    std::vector<int> BufferNonZeroUserIndexes(BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements));
-//    std::vector<int> BufferNonZeroItemIndexes(BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements));
-//    std::vector<double> BufferNonZeroElements(BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements));
-
-//    MPI_Scatter(&nonZeroUserIndexes[BLOCK_LOW(processId, numberOfProcesses, numberOfNonZeroElements)],
-//                BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements), MPI_INT, &nonZeroUserIndexes[0],
-//                BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements), MPI_INT, ROOT, MPI_COMM_WORLD);
-//    MPI_Scatter(&nonZeroItemIndexes[BLOCK_LOW(processId, numberOfProcesses, numberOfNonZeroElements)],
-//                BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements), MPI_INT, &nonZeroUserIndexes[0],
-//                BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements), MPI_INT, ROOT, MPI_COMM_WORLD);
-//    MPI_Scatter(&nonZeroElements[BLOCK_LOW(processId, numberOfProcesses, numberOfNonZeroElements)],
-//                BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements), MPI_DOUBLE, &nonZeroUserIndexes[0],
-//                BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements), MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
-
-
     MPI_Bcast(&nonZeroUserIndexes[0],
               numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&nonZeroItemIndexes[0],
@@ -167,18 +131,20 @@ void readInput(std::string &inputFileName, double *&A,
 
     int startIndex = BLOCK_LOW(processId, numberOfProcesses, numberOfNonZeroElements);
     int endIndex = startIndex + BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements);
-//    std::vector<std::vector<double>> StoreA(numberOfUsers, std::vector<double>(numberOfItems, 0));
     for (int l = startIndex; l < endIndex; l++) {
         StoreA[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = nonZeroElements[l];
-//        std::cout << "process " << processId << " has non zero element = " << nonZeroElements[l] << std::endl;
-//        fflush(stdout);
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    MPI_Allreduce(&StoreA[0], &A[0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
 //    if (processId == 0) {
 //        for (int i = 0; i < numberOfUsers; i++) {
 //            for (int j = 0; j < numberOfItems; j++) {
-//                std::cout << StoreA[i][j] << " ";
+//                std::cout << A[i * numberOfItems + j] << " ";
 //                fflush(stdout);
 //            }
 //            std::cout << std::endl;
@@ -187,29 +153,4 @@ void readInput(std::string &inputFileName, double *&A,
 //    }
 
     MPI_Barrier(MPI_COMM_WORLD);
-
-
-//    MPI_Allreduce(&StoreA[0][0], &A[0][0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&StoreA[0], &A[0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    printf("process %d ended readInput\n", processId);
-    fflush(stdout);
-
-
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
-
-    if (processId == 0) {
-        for (int i = 0; i < numberOfUsers; i++) {
-            for (int j = 0; j < numberOfItems; j++) {
-                std::cout << A[i * numberOfItems + j] << " ";
-                fflush(stdout);
-            }
-            std::cout << std::endl;
-            fflush(stdout);
-        }
-    }
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
 }

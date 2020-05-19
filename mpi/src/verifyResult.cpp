@@ -20,7 +20,7 @@ int verifyResult(std::string &fileName, int *&BV) {
     for (int i = 0; i < realValues.size(); i++) {
         if (BV[i] != realValues[i]) {
             numberOfFalses++;
-        };
+        }
     }
     return numberOfFalses;
 };
