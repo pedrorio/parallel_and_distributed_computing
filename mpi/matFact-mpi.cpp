@@ -23,9 +23,9 @@ int main(int argc, char *argv[]) {
 
 //    testFunc(A);
 
-    for (int i = 0; i < 20; ++i) {
-        std::cout << i << std::endl;
-    }
+//    for (int i = 0; i < 20; ++i) {
+//        std::cout << i << std::endl;
+//    }
 
 //    time_t begin = omp_get_wtime();
 
@@ -151,8 +151,8 @@ int main(int argc, char *argv[]) {
 //    TODO
 //    if (processId == ROOT) {
         filter_final_matrix = MPI_Wtime();
-        printf("[filterFinalMatrix][%d] %f\n", processId, filter_final_matrix - update_lr);
-        fflush(stdout);
+//        printf("[filterFinalMatrix][%d] %f\n", processId, filter_final_matrix - update_lr);
+//        fflush(stdout);
 //    }
 //    printf("[filterFinalMatrix]\n");
 //    fflush(stdout);

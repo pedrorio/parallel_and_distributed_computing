@@ -67,9 +67,12 @@ void readInput(std::string &inputFileName, double *&A,
     MPI_Bcast(&convergenceCoefficient, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfFeatures, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
+
+
     MPI_Bcast(&numberOfUsers, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfItems, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfNonZeroElements, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+
 
 
 //    double ResultA[numberOfUsers][numberOfItems];
@@ -82,21 +85,43 @@ void readInput(std::string &inputFileName, double *&A,
 
 //    std::vector<std::vector<double>> ResizeA(numberOfUsers, std::vector<double>(numberOfItems, 0));
     A = new double[numberOfUsers * numberOfItems];
-//    for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
-//        A[i] = 0;
-//    }
-
-    double StoreA[numberOfUsers * numberOfItems];
     for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
-        StoreA[i] = 0;
+        A[i] = 0;
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    auto *StoreA = new double[0];
+    StoreA = new double[numberOfUsers * numberOfItems];
+
+
+        for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
+//            printf("Inside Store A\n");
+            StoreA[i] = 0;
+        }
+
+
+
+    MPI_Barrier(MPI_COMM_WORLD);
 //    std::vector<int> ResizeIndexes(numberOfNonZeroElements);
     nonZeroUserIndexes = new int[numberOfNonZeroElements];
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
     nonZeroItemIndexes = new int[numberOfNonZeroElements];
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
 //    std::vector<double> ResizeElements(numberOfNonZeroElements);
     nonZeroElements = new double[numberOfNonZeroElements];
+    MPI_Barrier(MPI_COMM_WORLD);
+
+
+    for (int i = 0; i < numberOfNonZeroElements; i++) {
+        nonZeroUserIndexes[i] = 0;
+        nonZeroItemIndexes[i] = 0;
+        nonZeroElements[i] = 0;
+    }
 
     if (processId == ROOT) {
         for (int m = 0; m < numberOfNonZeroElements; m++) {
@@ -163,10 +188,13 @@ void readInput(std::string &inputFileName, double *&A,
 
     MPI_Barrier(MPI_COMM_WORLD);
 
+
 //    MPI_Allreduce(&StoreA[0][0], &A[0][0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&StoreA[0], &A[0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     printf("process %d ended readInput\n", processId);
     fflush(stdout);
+
+
 
     MPI_Barrier(MPI_COMM_WORLD);
 

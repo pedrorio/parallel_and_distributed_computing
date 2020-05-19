@@ -31,7 +31,7 @@ void filterFinalMatrix(double *&A, double *&B,
             BV[i] = maxPosition;
         }
 
-        std::cout << BV[i] << std::endl;
+        //std::cout << BV[i] << std::endl;
     };
 
 };
