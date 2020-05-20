@@ -28,3 +28,5 @@ helpers/compare
 mpi/matFact-mpi
 omp/matFact-omp
 serial/matFact
+
+!mpi/Makefile
