@@ -1,8 +1,6 @@
 #ifndef SERIAL_UPDATELR_H
 #define SERIAL_UPDATELR_H
 
-#include <vector>
-
 void updateLR(double *&A,
               int *&nonZeroUserIndexes,
               int *&nonZeroItemIndexes,
@@ -10,6 +8,7 @@ void updateLR(double *&A,
               double *&StoreL, double *&StoreR,
               int &numberOfUsers, int &numberOfItems, int &numberOfFeatures,
               int &numberOfNonZeroElements,
-              double &convergenceCoefficient);
+              double &convergenceCoefficient,
+              int &processId, int &numberOfProcesses);
 
 #endif //SERIAL_UPDATELR_H

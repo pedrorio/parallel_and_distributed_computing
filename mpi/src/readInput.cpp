@@ -74,27 +74,16 @@ void readInput(std::string &inputFileName, double *&A,
         A[i] = 0;
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
     auto *StoreA = new double[numberOfUsers * numberOfItems];
-
     for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
         StoreA[i] = 0;
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
     nonZeroUserIndexes = new int[numberOfNonZeroElements];
-
-    MPI_Barrier(MPI_COMM_WORLD);
 
     nonZeroItemIndexes = new int[numberOfNonZeroElements];
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
     nonZeroElements = new double[numberOfNonZeroElements];
-
-    MPI_Barrier(MPI_COMM_WORLD);
 
     for (int i = 0; i < numberOfNonZeroElements; i++) {
         nonZeroUserIndexes[i] = 0;
@@ -118,10 +107,6 @@ void readInput(std::string &inputFileName, double *&A,
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
     MPI_Bcast(&nonZeroUserIndexes[0],
               numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&nonZeroItemIndexes[0],
@@ -129,19 +114,13 @@ void readInput(std::string &inputFileName, double *&A,
     MPI_Bcast(&nonZeroElements[0],
               numberOfNonZeroElements, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
     int startIndex = BLOCK_LOW(processId, numberOfProcesses, numberOfNonZeroElements);
     int endIndex = startIndex + BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements);
     for (int l = startIndex; l < endIndex; l++) {
         StoreA[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = nonZeroElements[l];
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
     MPI_Allreduce(&StoreA[0], &A[0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-
-    MPI_Barrier(MPI_COMM_WORLD);
 
     delete[] StoreA;
 }

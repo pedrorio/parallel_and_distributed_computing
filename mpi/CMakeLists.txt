@@ -11,7 +11,7 @@ add_executable(
         src/filterFinalMatrix.cpp src/filterFinalMatrix.h
         src/computeB.cpp src/computeB.h
         src/verifyResult.cpp src/verifyResult.h
-        src/testFunc.cpp src/testFunc.h src/element.cpp src/element.h)
+)
 
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)

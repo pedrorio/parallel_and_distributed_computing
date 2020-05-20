@@ -29,7 +29,6 @@ int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcesses);
     MPI_Comm_rank(MPI_COMM_WORLD, &processId);
-    MPI_Barrier(MPI_COMM_WORLD);
     double start_time = MPI_Wtime();
 
     int numberOfIterations;
@@ -51,7 +50,7 @@ int main(int argc, char *argv[]) {
     printf("[readInput][%d] %f\n", processId, read_input - start_time);
     fflush(stdout);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+//    MPI_Barrier(MPI_COMM_WORLD);
 
     auto *L = new double[numberOfUsers * numberOfFeatures];
 //    auto *StoreL = new double[numberOfUsers * numberOfFeatures];
@@ -69,7 +68,7 @@ int main(int argc, char *argv[]) {
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+//    MPI_Barrier(MPI_COMM_WORLD);
     initial_lr = MPI_Wtime();
     printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
     fflush(stdout);
@@ -117,7 +116,8 @@ int main(int argc, char *argv[]) {
                  L, R, StoreL, StoreR,
                  numberOfUsers, numberOfItems, numberOfFeatures,
                  numberOfNonZeroElements,
-                 convergenceCoefficient);
+                 convergenceCoefficient,
+                 processId, numberOfProcesses);
 
         delete[] StoreL;
         delete[] StoreR;
