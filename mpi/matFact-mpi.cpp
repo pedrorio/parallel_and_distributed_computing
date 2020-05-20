@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
               numberOfNonZeroElements, processId, numberOfProcesses);
 
     read_input = MPI_Wtime();
-    printf("[readInput][%d] %f\n", processId, read_input - start_time);
-    fflush(stdout);
+//    printf("[readInput][%d] %f\n", processId, read_input - start_time);
+//    fflush(stdout);
 
 //    MPI_Barrier(MPI_COMM_WORLD);
 
@@ -70,30 +70,8 @@ int main(int argc, char *argv[]) {
 
 //    MPI_Barrier(MPI_COMM_WORLD);
     initial_lr = MPI_Wtime();
-    printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
-    fflush(stdout);
-
-//    int numberOfDimensions = 2;
-//    int periodic[numberOfDimensions];
-//    int size[numberOfDimensions];
-//
-//    for (int i = 0; i < numberOfDimensions; i++) {
-//        periodic[i] = 0;
-//        size[i] = 0;
-//    }
-//    MPI_Dims_create(numberOfProcesses, numberOfDimensions, size);
-//    MPI_Comm gridCommunicator;
-//    MPI_Comm rowCommunicator;
-//    MPI_Cart_create(MPI_COMM_WORLD, numberOfDimensions, size, periodic, 1, &gridCommunicator);
-
-
-//    MPI_Comm gridCommunicator;
-//    int gridCoordinates[2];
-//    MPI_Comm_split(gridCommunicator, gridCoordinates[0], gridCoordinates[1], &rowCommunicator);
-
-//    MPI_Cart_rank(): rank of the process
-//    MPI_Cart_coords(): coordinates of the process
-//    MPI_Comm_split(): splits processes into different communicators
+//    printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
+//    fflush(stdout);
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
 
@@ -106,9 +84,6 @@ int main(int argc, char *argv[]) {
         for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
             StoreR[k] = R[k];
         }
-
-//        StoreR = R;
-//        StoreL = L;
 
         updateLR(A,
                  nonZeroUserIndexes,
@@ -124,8 +99,8 @@ int main(int argc, char *argv[]) {
     }
 
     update_lr = MPI_Wtime();
-    printf("[updateLR][%d] %f\n", processId, update_lr - initial_lr);
-    fflush(stdout);
+//    printf("[updateLR][%d] %f\n", processId, update_lr - initial_lr);
+//    fflush(stdout);
 
     auto *B = new double[numberOfUsers * numberOfItems];
     for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
@@ -147,19 +122,41 @@ int main(int argc, char *argv[]) {
                       BV);
 
     filter_final_matrix = MPI_Wtime();
-    printf("[filterFinalMatrix][%d] %f\n", processId, filter_final_matrix - update_lr);
-    fflush(stdout);
+//    printf("[filterFinalMatrix][%d] %f\n", processId, filter_final_matrix - update_lr);
+//    fflush(stdout);
 
-    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-    int numberOfErrors = verifyResult(outputFileName, BV);
-    std::cout << "[Errors] " << numberOfErrors << std::endl;
+//    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
+//    int numberOfErrors = verifyResult(outputFileName, BV);
+//    std::cout << "[Errors] " << numberOfErrors << std::endl;
 
     total_time = MPI_Wtime();
-    printf("[Total][%d] %f\n", processId, total_time - start_time);
-    fflush(stdout);
+//    printf("[Total][%d] %f\n", processId, total_time - start_time);
+//    fflush(stdout);
 
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
+
+    std::ofstream logResults("../helpers/comparison.csv", std::ios::app);
+
+
+    logResults << inputFileName << ", ";
+    logResults << numberOfProcesses << ", ";
+
+    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
+    int numberOfErrors = verifyResult(outputFileName, BV);
+    logResults << numberOfErrors << ", ";
+
+    logResults << numberOfUsers << ", ";
+    logResults << numberOfItems << ", ";
+    logResults << numberOfFeatures << ", ";
+    logResults << numberOfNonZeroElements << ", ";
+    logResults << numberOfIterations << ", ";
+    logResults << double(read_input - start_time) << ", ";
+    logResults << double(initial_lr - read_input) << ", ";
+    logResults << double(filter_final_matrix - initial_lr) << ", ";
+    logResults << double(total_time - start_time);
+    logResults << std::endl;
+    logResults.close();
 
     delete[] A;
     delete[] B;
@@ -167,10 +164,6 @@ int main(int argc, char *argv[]) {
 
     delete[] L;
     delete[] R;
-//
-//    delete[] nonZeroElements;
-//    delete[] nonZeroItemIndexes;
-//    delete[] nonZeroItemIndexes;
 
     return 0;
 }

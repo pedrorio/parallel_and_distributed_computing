@@ -75,15 +75,6 @@ void updateLR(double *&A,
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-//    for (int l = 0; l < numberOfNonZeroElements; l++) {
-//        for (int k = 0; k < numberOfFeatures; k++) {
-//            L[nonZeroUserIndexes[l] * numberOfFeatures + k] +=
-//                    convergenceCoefficient * (2 * delta[l] * StoreR[k * numberOfItems + nonZeroItemIndexes[l]]);
-//            R[k * numberOfItems + nonZeroItemIndexes[l]] +=
-//                    convergenceCoefficient * (2 * delta[l] * StoreL[nonZeroUserIndexes[l] * numberOfFeatures + k]);
-//        }
-//    }
-
     for (int l = 0; l < numberOfNonZeroElements; l++) {
         for (int k = 0; k < numberOfFeatures; k++) {
             L[nonZeroUserIndexes[l] * numberOfFeatures + k] +=
