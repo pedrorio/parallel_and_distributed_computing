@@ -54,17 +54,17 @@ int main(int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     auto *L = new double[numberOfUsers * numberOfFeatures];
-    auto *StoreL = new double[numberOfUsers * numberOfFeatures];
+//    auto *StoreL = new double[numberOfUsers * numberOfFeatures];
     for (int k = 0; k < numberOfUsers * numberOfFeatures; k++) {
         L[k] = 0;
-        StoreL[k] = 0;
+//        StoreL[k] = 0;
     }
 
     auto *R = new double[numberOfFeatures * numberOfItems];
-    auto *StoreR = new double[numberOfFeatures * numberOfItems];
+//    auto *StoreR = new double[numberOfFeatures * numberOfItems];
     for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
         R[k] = 0;
-        StoreR[k] = 0;
+//        StoreR[k] = 0;
     }
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
@@ -74,9 +74,42 @@ int main(int argc, char *argv[]) {
     printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
     fflush(stdout);
 
+//    int numberOfDimensions = 2;
+//    int periodic[numberOfDimensions];
+//    int size[numberOfDimensions];
+//
+//    for (int i = 0; i < numberOfDimensions; i++) {
+//        periodic[i] = 0;
+//        size[i] = 0;
+//    }
+//    MPI_Dims_create(numberOfProcesses, numberOfDimensions, size);
+//    MPI_Comm gridCommunicator;
+//    MPI_Comm rowCommunicator;
+//    MPI_Cart_create(MPI_COMM_WORLD, numberOfDimensions, size, periodic, 1, &gridCommunicator);
+
+
+//    MPI_Comm gridCommunicator;
+//    int gridCoordinates[2];
+//    MPI_Comm_split(gridCommunicator, gridCoordinates[0], gridCoordinates[1], &rowCommunicator);
+
+//    MPI_Cart_rank(): rank of the process
+//    MPI_Cart_coords(): coordinates of the process
+//    MPI_Comm_split(): splits processes into different communicators
+
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
-        StoreR = R;
-        StoreL = L;
+
+        auto *StoreL = new double[numberOfUsers * numberOfFeatures];
+        for (int k = 0; k < numberOfUsers * numberOfFeatures; k++) {
+            StoreL[k] = L[k];
+        }
+
+        auto *StoreR = new double[numberOfFeatures * numberOfItems];
+        for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
+            StoreR[k] = R[k];
+        }
+
+//        StoreR = R;
+//        StoreL = L;
 
         updateLR(A,
                  nonZeroUserIndexes,
@@ -86,7 +119,8 @@ int main(int argc, char *argv[]) {
                  numberOfNonZeroElements,
                  convergenceCoefficient);
 
-
+        delete[] StoreL;
+        delete[] StoreR;
     }
 
     update_lr = MPI_Wtime();
@@ -131,11 +165,12 @@ int main(int argc, char *argv[]) {
     delete[] B;
     delete[] BV;
 
-    delete[] StoreL;
-    delete[] StoreR;
-
-//    delete[] L;
-//    delete[] R;
+    delete[] L;
+    delete[] R;
+//
+//    delete[] nonZeroElements;
+//    delete[] nonZeroItemIndexes;
+//    delete[] nonZeroItemIndexes;
 
     return 0;
 }

@@ -11,7 +11,6 @@ void updateLR(double *&A,
               int &numberOfNonZeroElements,
               double &convergenceCoefficient) {
 
-
     auto *prediction = new double[numberOfNonZeroElements];
     auto *delta = new double[numberOfNonZeroElements];
 
