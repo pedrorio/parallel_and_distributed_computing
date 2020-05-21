@@ -98,14 +98,16 @@ int main(int argc, char *argv[]) {
         BV[k] = 0;
     }
 
-    filterFinalMatrix(A, B,
-                      nonZeroUserIndexes,
-                      nonZeroItemIndexes,
-                      nonZeroElements,
-                      L, R,
-                      numberOfUsers, numberOfItems, numberOfFeatures,
-                      numberOfNonZeroElements,
-                      BV, processId);
+    if (processId == ROOT) {
+        filterFinalMatrix(A, B,
+                          nonZeroUserIndexes,
+                          nonZeroItemIndexes,
+                          nonZeroElements,
+                          L, R,
+                          numberOfUsers, numberOfItems, numberOfFeatures,
+                          numberOfNonZeroElements,
+                          BV);
+    }
 
     filter_final_matrix = MPI_Wtime();
 

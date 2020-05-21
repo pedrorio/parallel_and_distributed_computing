@@ -12,6 +12,6 @@ void filterFinalMatrix(double *&A, double *&B,
                        double *&R,
                        int &numberOfUsers, int &numberOfItems, int &numberOfFeatures,
                        int &numberOfNonZeroElements,
-                       int *&BV, int &processId);
+                       int *&BV);
 
 #endif //SERIAL_FILTERFINALMATRIX_H

@@ -7,7 +7,7 @@ void filterFinalMatrix(double *&A, double *&B,
                        double *&L, double *&R,
                        int &numberOfUsers, int &numberOfItems, int &numberOfFeatures,
                        int &numberOfNonZeroElements,
-                       int *&BV, int &processId) {
+                       int *&BV) {
 
     computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures, B);
 
