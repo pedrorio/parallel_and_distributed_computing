@@ -1,6 +1,9 @@
 #ifndef SERIAL_FILTERFINALMATRIX_H
 #define SERIAL_FILTERFINALMATRIX_H
 
+#include <iostream>
+#include "computeB.h"
+
 void filterFinalMatrix(double *&A, double *&B,
                        int *&nonZeroUserIndexes,
                        int *&nonZeroItemIndexes,

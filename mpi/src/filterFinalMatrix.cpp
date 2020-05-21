@@ -1,6 +1,4 @@
-#include <iostream>
 #include "filterFinalMatrix.h"
-#include "computeB.h"
 
 void filterFinalMatrix(double *&A, double *&B,
                        int *&nonZeroUserIndexes,
@@ -9,7 +7,7 @@ void filterFinalMatrix(double *&A, double *&B,
                        double *&L, double *&R,
                        int &numberOfUsers, int &numberOfItems, int &numberOfFeatures,
                        int &numberOfNonZeroElements,
-                       int *&BV) {
+                       int *&BV, int &processId) {
 
     computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures, B);
 

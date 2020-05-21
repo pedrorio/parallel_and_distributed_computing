@@ -1,5 +1,4 @@
 #include "mpi.h"
-//#include "omp.h"
 
 #include "src/readInput.h"
 #include "src/initialLR.h"
@@ -47,31 +46,20 @@ int main(int argc, char *argv[]) {
               numberOfNonZeroElements, processId, numberOfProcesses);
 
     read_input = MPI_Wtime();
-//    printf("[readInput][%d] %f\n", processId, read_input - start_time);
-//    fflush(stdout);
-
-//    MPI_Barrier(MPI_COMM_WORLD);
 
     auto *L = new double[numberOfUsers * numberOfFeatures];
-//    auto *StoreL = new double[numberOfUsers * numberOfFeatures];
     for (int k = 0; k < numberOfUsers * numberOfFeatures; k++) {
         L[k] = 0;
-//        StoreL[k] = 0;
     }
 
     auto *R = new double[numberOfFeatures * numberOfItems];
-//    auto *StoreR = new double[numberOfFeatures * numberOfItems];
     for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
         R[k] = 0;
-//        StoreR[k] = 0;
     }
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
-//    MPI_Barrier(MPI_COMM_WORLD);
     initial_lr = MPI_Wtime();
-//    printf("[initialLR][%d] %f\n", processId, initial_lr - read_input);
-//    fflush(stdout);
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
 
@@ -99,8 +87,6 @@ int main(int argc, char *argv[]) {
     }
 
     update_lr = MPI_Wtime();
-//    printf("[updateLR][%d] %f\n", processId, update_lr - initial_lr);
-//    fflush(stdout);
 
     auto *B = new double[numberOfUsers * numberOfItems];
     for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
@@ -122,16 +108,8 @@ int main(int argc, char *argv[]) {
                       BV, processId);
 
     filter_final_matrix = MPI_Wtime();
-//    printf("[filterFinalMatrix][%d] %f\n", processId, filter_final_matrix - update_lr);
-//    fflush(stdout);
-
-//    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-//    int numberOfErrors = verifyResult(outputFileName, BV);
-//    std::cout << "[Errors] " << numberOfErrors << std::endl;
 
     total_time = MPI_Wtime();
-//    printf("[Total][%d] %f\n", processId, total_time - start_time);
-//    fflush(stdout);
 
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
