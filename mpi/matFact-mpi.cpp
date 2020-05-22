@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
 
-    std::ofstream logResults("../helpers/comparison.csv", std::ios::app);
+    std::ofstream logResults("../helpers/comparison.mpi.csv", std::ios::app);
 
 
     logResults << inputFileName << ", ";
@@ -134,6 +134,7 @@ int main(int argc, char *argv[]) {
     logResults << double(read_input - start_time) << ", ";
     logResults << double(initial_lr - read_input) << ", ";
     logResults << double(filter_final_matrix - initial_lr) << ", ";
+    logResults << double(total_time - filter_final_matrix) << ", ";
     logResults << double(total_time - start_time);
     logResults << std::endl;
     logResults.close();

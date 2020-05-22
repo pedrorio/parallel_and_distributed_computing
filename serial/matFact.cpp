@@ -63,9 +63,9 @@ int main(int argc, char *argv[]) {
 
     time_t end = omp_get_wtime();
 
-    std::ofstream logResults("../helpers/comparison.csv", std::ios::app);
+    std::ofstream logResults("../helpers/comparison.serial.csv", std::ios::app);
     logResults << inputFileName << ", ";
-    logResults << 0 << ", ";
+    logResults << 1 << ", ";
 
     std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
     int numberOfErrors = verifyResult(outputFileName, BV);
@@ -79,6 +79,7 @@ int main(int argc, char *argv[]) {
     logResults << double(read_input - begin) << ", ";
     logResults << double(initial_l_r - read_input) << ", ";
     logResults << double(final_filtering - initial_l_r) << ", ";
+    logResults << double(end - final_filtering) << ", ";
     logResults << double(end - begin);
     logResults << std::endl;
     logResults.close();
