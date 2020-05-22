@@ -116,28 +116,32 @@ int main(int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
 
-    std::ofstream logResults("../helpers/comparison.mpi.csv", std::ios::app);
 
+    if (std::getenv("LOG_RESULTS")) {
+//        std::ofstream logResults("../helpers/comparison.mpi.csv", std::ios::app);
+//
+//        logResults << inputFileName << ", ";
+//        logResults << numberOfProcesses << ", ";
+//
+//        std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
+//        int numberOfErrors = verifyResult(outputFileName, BV);
+//        logResults << numberOfErrors << ", ";
+//
+//        logResults << numberOfUsers << ", ";
+//        logResults << numberOfItems << ", ";
+//        logResults << numberOfFeatures << ", ";
+//        logResults << numberOfNonZeroElements << ", ";
+//        logResults << numberOfIterations << ", ";
+//        logResults << double(read_input - start_time) << ", ";
+//        logResults << double(initial_lr - read_input) << ", ";
+//        logResults << double(filter_final_matrix - initial_lr) << ", ";
+//        logResults << double(total_time - filter_final_matrix) << ", ";
+//        logResults << double(total_time - start_time);
+//        logResults << std::endl;
+//        logResults.close();
 
-    logResults << inputFileName << ", ";
-    logResults << numberOfProcesses << ", ";
-
-    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-    int numberOfErrors = verifyResult(outputFileName, BV);
-    logResults << numberOfErrors << ", ";
-
-    logResults << numberOfUsers << ", ";
-    logResults << numberOfItems << ", ";
-    logResults << numberOfFeatures << ", ";
-    logResults << numberOfNonZeroElements << ", ";
-    logResults << numberOfIterations << ", ";
-    logResults << double(read_input - start_time) << ", ";
-    logResults << double(initial_lr - read_input) << ", ";
-    logResults << double(filter_final_matrix - initial_lr) << ", ";
-    logResults << double(total_time - filter_final_matrix) << ", ";
-    logResults << double(total_time - start_time);
-    logResults << std::endl;
-    logResults.close();
+        std::cout << double(total_time - start_time) << std::endl;
+    }
 
     delete[] A;
     delete[] B;

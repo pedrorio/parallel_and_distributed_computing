@@ -30,8 +30,6 @@ void readInput(std::string &inputFileName, double *&A,
         countFileLines.close();
     }
 
-    MPI_Bcast(&numberOfLines, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-
     if (processId == ROOT) {
         for (int k = 0; k < 4; k++) {
             line = fileCopy[k];
@@ -62,6 +60,8 @@ void readInput(std::string &inputFileName, double *&A,
         }
     }
 
+    // REFACTOR AS 2 ARRAYS
+    MPI_Bcast(&numberOfLines, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfIterations, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&convergenceCoefficient, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfFeatures, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
@@ -91,6 +91,7 @@ void readInput(std::string &inputFileName, double *&A,
         nonZeroElements[i] = 0;
     }
 
+    // SCATTERV
     if (processId == ROOT) {
         for (int m = 0; m < numberOfNonZeroElements; m++) {
             line = fileCopy[m + 4];
@@ -107,13 +108,12 @@ void readInput(std::string &inputFileName, double *&A,
         }
     }
 
-    MPI_Bcast(&nonZeroUserIndexes[0],
-              numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
-    MPI_Bcast(&nonZeroItemIndexes[0],
-              numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
-    MPI_Bcast(&nonZeroElements[0],
-              numberOfNonZeroElements, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
+    // SCATTERV
+    MPI_Bcast(&nonZeroUserIndexes[0], numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast(&nonZeroItemIndexes[0], numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast(&nonZeroElements[0], numberOfNonZeroElements, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
 
+    // Parallelised
     int startIndex = BLOCK_LOW(processId, numberOfProcesses, numberOfNonZeroElements);
     int endIndex = startIndex + BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements);
     for (int l = startIndex; l < endIndex; l++) {

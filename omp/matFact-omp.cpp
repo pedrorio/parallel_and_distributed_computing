@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
-    std::vector<std::vector<double>> B(numberOfUsers, std::vector<double>(numberOfItems,0));
+    std::vector<std::vector<double>> B(numberOfUsers, std::vector<double>(numberOfItems, 0));
 
     std::vector<std::vector<double>> StoreL;
     std::vector<std::vector<double>> StoreR;
@@ -64,26 +64,28 @@ int main(int argc, char *argv[]) {
 
     time_t end = omp_get_wtime();
 
-    std::ofstream logResults("../helpers/comparison.omp.csv", std::ios::app);
-    logResults << inputFileName << ", ";
-    logResults << std::getenv("OMP_NUM_THREADS") << ", ";
+    if (std::getenv("LOG_RESULTS")) {
+        std::ofstream logResults("../helpers/comparison.omp.csv", std::ios::app);
+        logResults << inputFileName << ", ";
+        logResults << std::getenv("OMP_NUM_THREADS") << ", ";
 
-    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-    int numberOfErrors = verifyResult(outputFileName, BV);
-    logResults << numberOfErrors << ", ";
+        std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
+        int numberOfErrors = verifyResult(outputFileName, BV);
+        logResults << numberOfErrors << ", ";
 
-    logResults << numberOfUsers << ", ";
-    logResults << numberOfItems << ", ";
-    logResults << numberOfFeatures << ", ";
-    logResults << numberOfNonZeroElements << ", ";
-    logResults << numberOfIterations << ", ";
-    logResults << double(read_input - begin) << ", ";
-    logResults << double(initial_l_r - read_input) << ", ";
-    logResults << double(final_filtering - initial_l_r) << ", ";
-    logResults << double(end - final_filtering) << ", ";
-    logResults << double(end - begin);
-    logResults << std::endl;
-    logResults.close();
+        logResults << numberOfUsers << ", ";
+        logResults << numberOfItems << ", ";
+        logResults << numberOfFeatures << ", ";
+        logResults << numberOfNonZeroElements << ", ";
+        logResults << numberOfIterations << ", ";
+        logResults << double(read_input - begin) << ", ";
+        logResults << double(initial_l_r - read_input) << ", ";
+        logResults << double(final_filtering - initial_l_r) << ", ";
+        logResults << double(end - final_filtering) << ", ";
+        logResults << double(end - begin);
+        logResults << std::endl;
+        logResults.close();
+    }
 
     return 0;
 }
