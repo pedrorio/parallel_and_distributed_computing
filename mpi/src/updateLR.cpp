@@ -73,14 +73,16 @@ void updateLR(double *&A,
     MPI_Allgatherv(&sDelta[0], nZBlockSize, MPI_DOUBLE, &delta[0], nZCounts,
                    nZDisplacements, MPI_DOUBLE, MPI_COMM_WORLD);
 
-    int startIndex = nZDisplacements[processId];
-    int blockSize = nZDisplacements[processId];
 
-    int lStartUserIndex = nonZeroUserIndexes[startIndex];
-    int lEndUserIndex = nonZeroUserIndexes[startIndex + blockSize];
+    // LOCAL L, R, BLOCK SIZE AND START INDEX
+//    int startIndex = nZDisplacements[processId];
+//    int blockSize = nZDisplacements[processId];
 
-    int rStartUserIndex = nonZeroItemIndexes[startIndex];
-    int rEndUserIndex = nonZeroItemIndexes[startIndex + blockSize];
+    int lStartUserIndex = nonZeroUserIndexes[nZStartIndex];
+    int lEndUserIndex = nonZeroUserIndexes[nZStartIndex + nZBlockSize - 1];
+
+    int rStartUserIndex = nonZeroItemIndexes[nZStartIndex];
+    int rEndUserIndex = nonZeroItemIndexes[nZStartIndex + nZBlockSize - 1];
 
     int lSize = numberOfUsers * numberOfFeatures;
     auto *sL = new double[lSize];
@@ -94,12 +96,12 @@ void updateLR(double *&A,
         sR[i] = R[i];
     }
 
-//    auto *lCounts = new int[numberOfProcesses];
-//    auto *lDisplacements = new int[numberOfProcesses];
-//    for (int j = 0; j < numberOfProcesses; j++) {
-//        lCounts[j] = BLOCK_SIZE(j, numberOfProcesses, lSize);
-//        lDisplacements[j] = BLOCK_LOW(j, numberOfProcesses, lSize);
-//    }
+    auto *lCounts = new int[numberOfProcesses];
+    auto *lDisplacements = new int[numberOfProcesses];
+    for (int j = 0; j < numberOfProcesses; j++) {
+        lCounts[j] = BLOCK_SIZE(j, numberOfProcesses, lSize);
+        lDisplacements[j] = BLOCK_LOW(j, numberOfProcesses, lSize);
+    }
 
 //    auto *rCounts = new int[numberOfProcesses];
 //    auto *rDisplacements = new int[numberOfProcesses];
@@ -118,7 +120,12 @@ void updateLR(double *&A,
         }
     }
 
+    sL[nonZeroUserIndexes[l] * numberOfFeatures + k]
+    sR[k * numberOfItems + nonZeroItemIndexes[l]]
     // GATHERV
+
+    MPI_Allgatherv(&sL[0], (lStartUserIndex - lEndUserIndex - 1) * numberOfFeatures, MPI_DOUBLE, &L[0], nZCounts,
+                   nZDisplacements, MPI_DOUBLE, MPI_COMM_WORLD);
 
     delete[] prediction;
     delete[] delta;
