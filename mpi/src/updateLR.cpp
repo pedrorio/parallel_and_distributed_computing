@@ -73,37 +73,47 @@ void updateLR(double *&A,
     MPI_Allgatherv(&sDelta[0], nZBlockSize, MPI_DOUBLE, &delta[0], nZCounts,
                    nZDisplacements, MPI_DOUBLE, MPI_COMM_WORLD);
 
+    int startIndex = nZDisplacements[processId];
+    int blockSize = nZDisplacements[processId];
+
+    int lStartUserIndex = nonZeroUserIndexes[startIndex];
+    int lEndUserIndex = nonZeroUserIndexes[startIndex + blockSize];
+
+    int rStartUserIndex = nonZeroItemIndexes[startIndex];
+    int rEndUserIndex = nonZeroItemIndexes[startIndex + blockSize];
 
     int lSize = numberOfUsers * numberOfFeatures;
     auto *sL = new double[lSize];
     for (int i = 0; i < numberOfUsers * numberOfFeatures; i++) {
-        L[i] = 0;
+        sL[i] = sL[i];
     }
-
-    int lStartIndex = BLOCK_LOW(processId, numberOfProcesses, lSize);
-    int lBlockSize = BLOCK_SIZE(processId, numberOfProcesses, lSize);
 
     int rSize = numberOfFeatures * numberOfItems;
     auto *sR = new double[rSize];
     for (int i = 0; i < rSize; i++) {
-        R[i] = 0;
+        sR[i] = R[i];
     }
 
+//    auto *lCounts = new int[numberOfProcesses];
+//    auto *lDisplacements = new int[numberOfProcesses];
+//    for (int j = 0; j < numberOfProcesses; j++) {
+//        lCounts[j] = BLOCK_SIZE(j, numberOfProcesses, lSize);
+//        lDisplacements[j] = BLOCK_LOW(j, numberOfProcesses, lSize);
+//    }
 
-    auto *rCounts = new int[numberOfProcesses];
-    auto *rDisplacements = new int[numberOfProcesses];
-    for (int j = 0; j < numberOfProcesses; j++) {
-        rCounts[j] = BLOCK_SIZE(j, numberOfProcesses, numberOfNonZeroElements);
-        rDisplacements[j] = BLOCK_LOW(j, numberOfProcesses, numberOfNonZeroElements);
-    }
+//    auto *rCounts = new int[numberOfProcesses];
+//    auto *rDisplacements = new int[numberOfProcesses];
+//    for (int j = 0; j < numberOfProcesses; j++) {
+//        rCounts[j] = BLOCK_SIZE(j, numberOfProcesses, rSize);
+//        rDisplacements[j] = BLOCK_LOW(j, numberOfProcesses, rSize);
+//    }
 
     // SCATTERV
-//    for (int l = 0; l < numberOfNonZeroElements; l++) {
     for (int l = 0; l < nZBlockSize; l++) {
         for (int k = 0; k < numberOfFeatures; k++) {
-            L[nonZeroUserIndexes[l] * numberOfFeatures + k] +=
+            sL[nonZeroUserIndexes[l] * numberOfFeatures + k] +=
                     convergenceCoefficient * (2 * delta[l] * StoreR[k * numberOfItems + nonZeroItemIndexes[l]]);
-            R[k * numberOfItems + nonZeroItemIndexes[l]] +=
+            sR[k * numberOfItems + nonZeroItemIndexes[l]] +=
                     convergenceCoefficient * (2 * delta[l] * StoreL[nonZeroUserIndexes[l] * numberOfFeatures + k]);
         }
     }
@@ -114,6 +124,14 @@ void updateLR(double *&A,
     delete[] delta;
     delete[] sPrediction;
     delete[] sDelta;
+
+    delete[] sL;
+    delete[] lCounts;
+    delete[] lDisplacements;
+
+    delete[] sR;
+    delete[] rCounts;
+    delete[] rDisplacements;
 
     delete[] sUserI;
     delete[] sItemI;

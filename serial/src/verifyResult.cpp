@@ -1,15 +1,13 @@
 #include <istream>
 #include <fstream>
-#include <iostream>
 #include "verifyResult.h"
 
-int verifyResult(std::string &fileName, std::vector<int> &BV) {
+int verifyResult(std::string &fileName, int *&BV) {
     std::vector<int> realValues;
 
     std::ifstream inFile(fileName);
     int element;
     for (std::string line; std::getline(inFile, line);) {
-//        std::cout << "line is: " << line << std::endl;
         if (line.empty()) {
             continue;
         }
@@ -22,7 +20,7 @@ int verifyResult(std::string &fileName, std::vector<int> &BV) {
     for (int i = 0; i < realValues.size(); i++) {
         if (BV[i] != realValues[i]) {
             numberOfFalses++;
-        };
+        }
     }
     return numberOfFalses;
 };

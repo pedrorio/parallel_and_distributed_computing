@@ -1,61 +1,83 @@
 #include "readInput.h"
 
+void readInput(std::string &inputFileName, double *&A,
+               int *&nonZeroUserIndexes, int *&nonZeroItemIndexes,
+               double *&nonZeroElements,
+               int &numberOfIterations, int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers,
+               int &numberOfItems, int &numberOfNonZeroElements) {
 
-void readInput(const std::string &inputFileName, std::vector<std::vector<double>> &A,
-               std::vector<std::vector<int>> &nonZeroElementIndexes, int &numberOfIterations,
-               int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers, int &numberOfItems,
-               int &numberOfNonZeroElements) {
-    std::ifstream inFile(inputFileName);
-    if (inFile.is_open()) {
-        int lineNumber = 1;
-        for (std::string line; std::getline(inFile, line);) {
-            std::istringstream iss(line);
+    delete[] A;
+    delete[] nonZeroUserIndexes;
+    delete[] nonZeroItemIndexes;
+    delete[] nonZeroElements;
 
-            switch (lineNumber) {
-                case 1: {
-                    numberOfIterations = std::stoi(line);
-                    break;
-                }
-                case 2: {
-                    convergenceCoefficient = std::stod(line);
-                    break;
-                }
-                case 3: {
-                    numberOfFeatures = std::stoi(line);
-                    break;
-                }
-                case 4: {
-                    std::vector<std::string> results(std::istream_iterator<std::string>{iss},
-                                                     std::istream_iterator<std::string>());
-                    numberOfUsers = std::stoi(results[0]);
-                    numberOfItems = std::stoi(results[1]);
-                    numberOfNonZeroElements = std::stoi(results[2]);
+    std::vector<std::string> fileCopy;
 
-                    A.resize(numberOfUsers);
-                    for (int i = 0; i < numberOfUsers; i++)
-                        A[i].resize(numberOfItems, 0);
-                    break;
-                }
-                default: {
-                    std::vector<std::string> results(std::istream_iterator<std::string>{iss},
-                                                     std::istream_iterator<std::string>());
-                    int userIndex = std::stoi(results[0]);
-                    int itemIndex = std::stoi(results[1]);
-                    double element = std::stod(results[2]);
-                    A[userIndex][itemIndex] = element;
-                    break;
-                }
+    std::string line;
+
+    std::ifstream countFileLines(inputFileName);
+    for (int numberOfLines = 0; std::getline(countFileLines, line); numberOfLines++) {
+        fileCopy.push_back(line);
+    };
+    countFileLines.close();
+
+    for (int k = 0; k < 4; k++) {
+        line = fileCopy[k];
+        switch (k) {
+            case 0: {
+                numberOfIterations = std::stoi(line);
+                break;
             }
-            lineNumber++;
-        }
-        inFile.close();
+            case 1: {
+                convergenceCoefficient = std::stod(line);
+                break;
+            }
+            case 2: {
+                numberOfFeatures = std::stoi(line);
+                break;
+            }
+            case 3: {
+                std::istringstream iss(line);
 
-        for (int user = 0; user < numberOfUsers; user++) {
-            for (int item = 0; item < numberOfItems; item++) {
-                if (A[user][item] != 0) {
-                    nonZeroElementIndexes.push_back({user, item});
-                }
+                std::vector<std::string> results(std::istream_iterator<std::string>{iss},
+                                                 std::istream_iterator<std::string>());
+
+                numberOfUsers = std::stoi(results[0]);
+                numberOfItems = std::stoi(results[1]);
+                numberOfNonZeroElements = std::stoi(results[2]);
+                break;
             }
         }
+    }
+
+    nonZeroElements = new double[numberOfNonZeroElements];
+    nonZeroUserIndexes = new int[numberOfNonZeroElements];
+    nonZeroItemIndexes = new int[numberOfNonZeroElements];
+
+    for (int i = 0; i < numberOfNonZeroElements; i++) {
+        nonZeroElements[i] = 0;
+        nonZeroUserIndexes[i] = 0;
+        nonZeroItemIndexes[i] = 0;
+    }
+
+    A = new double[numberOfUsers * numberOfItems];
+    for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
+        A[i] = 0;
+    }
+
+    for (int m = 0; m < numberOfNonZeroElements; m++) {
+        line = fileCopy[m + 4];
+        std::istringstream iss(line);
+        std::vector<std::string> results(std::istream_iterator<std::string>{iss},
+                                         std::istream_iterator<std::string>());
+        int userIndex = std::stoi(results[0]);
+        int itemIndex = std::stoi(results[1]);
+        double element = std::stod(results[2]);
+
+        A[userIndex * numberOfItems + itemIndex] = element;
+
+        nonZeroUserIndexes[m] = userIndex;
+        nonZeroItemIndexes[m] = itemIndex;
+        nonZeroElements[m] = element;
     }
 }

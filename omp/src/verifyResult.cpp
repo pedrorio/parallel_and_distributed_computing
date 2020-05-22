@@ -2,7 +2,7 @@
 #include <fstream>
 #include "verifyResult.h"
 
-int verifyResult(std::string &fileName, std::vector<int> &BV) {
+int verifyResult(std::string &fileName, int *&BV) {
     std::vector<int> realValues;
 
     std::ifstream inFile(fileName);
@@ -20,7 +20,7 @@ int verifyResult(std::string &fileName, std::vector<int> &BV) {
     for (int i = 0; i < realValues.size(); i++) {
         if (BV[i] != realValues[i]) {
             numberOfFalses++;
-        };
+        }
     }
     return numberOfFalses;
 };

@@ -1,13 +1,25 @@
 #include <vector>
-#include <omp.h>
 #include "src/readInput.h"
 #include "src/initialLR.h"
 #include "src/updateLR.h"
 #include "src/filterFinalMatrix.h"
 #include "src/verifyResult.h"
+#include <omp.h>
+
 
 int main(int argc, char *argv[]) {
-    time_t begin = omp_get_wtime();
+    time_t start_time;
+    time_t read_input;
+    time_t initial_lr;
+    time_t update_lr;
+    time_t total_time;
+
+    start_time = omp_get_wtime();
+
+    auto *A = new double[0];
+    auto *nonZeroUserIndexes = new int[0];
+    auto *nonZeroItemIndexes = new int[0];
+    auto *nonZeroElements = new double[0];
 
     int numberOfIterations;
     int numberOfFeatures;
@@ -17,35 +29,45 @@ int main(int argc, char *argv[]) {
     int numberOfItems;
     int numberOfNonZeroElements;
 
-    std::vector<std::vector<double>> A;
-    std::vector<std::vector<int>> nonZeroElementIndexes;
+    int k;
 
     std::string inputFileName = argv[1];
 
-    readInput(inputFileName, A, nonZeroElementIndexes,
+    readInput(inputFileName, A, nonZeroUserIndexes, nonZeroItemIndexes, nonZeroElements,
               numberOfIterations, numberOfFeatures, convergenceCoefficient,
               numberOfUsers, numberOfItems,
               numberOfNonZeroElements);
 
-    time_t read_input = omp_get_wtime();
+    read_input = omp_get_wtime();
 
-    std::vector<std::vector<double>> L(numberOfUsers, std::vector<double>(numberOfFeatures));
-    std::vector<std::vector<double>> R(numberOfFeatures, std::vector<double>(numberOfItems));
+    auto *L = new double[numberOfUsers * numberOfFeatures];
+    for (int k = 0; k < numberOfUsers * numberOfFeatures; k++) {
+        L[k] = 0;
+    }
+
+    auto *R = new double[numberOfFeatures * numberOfItems];
+    for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
+        R[k] = 0;
+    }
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
-    time_t initial_l_r = omp_get_wtime();
-
-    std::vector<std::vector<double>> B(numberOfUsers, std::vector<double>(numberOfItems, 0));
-
-    std::vector<std::vector<double>> StoreL;
-    std::vector<std::vector<double>> StoreR;
+    initial_lr = omp_get_wtime();
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
-        StoreL = L;
-        StoreR = R;
 
-        updateLR(A, nonZeroElementIndexes,
+        auto *StoreL = new double[numberOfUsers * numberOfFeatures];
+        for (int k = 0; k < numberOfUsers * numberOfFeatures; k++) {
+            StoreL[k] = L[k];
+        }
+
+        auto *StoreR = new double[numberOfFeatures * numberOfItems];
+        for (int k = 0; k < numberOfFeatures * numberOfItems; k++) {
+            StoreR[k] = R[k];
+        }
+
+        updateLR(A, nonZeroUserIndexes,
+                 nonZeroItemIndexes,
                  L, R, StoreL, StoreR,
                  numberOfUsers, numberOfItems, numberOfFeatures,
                  numberOfNonZeroElements,
@@ -54,37 +76,56 @@ int main(int argc, char *argv[]) {
 
     time_t final_filtering = omp_get_wtime();
 
-    std::vector<int> BV(numberOfUsers);
-    filterFinalMatrix(A, B, nonZeroElementIndexes,
+    auto *B = new double[numberOfUsers * numberOfItems];
+    for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
+        B[j] = 0;
+    }
+
+    auto *BV = new int[numberOfUsers];
+    for (int k = 0; k < numberOfUsers; k++) {
+        BV[k] = 0;
+    }
+
+    filterFinalMatrix(A, B, nonZeroUserIndexes,
+                      nonZeroItemIndexes,
+                      nonZeroElements,
                       L, R,
                       numberOfUsers, numberOfItems, numberOfFeatures,
                       numberOfNonZeroElements,
                       BV);
 
-    time_t end = omp_get_wtime();
+    delete[] L;
+    delete[] R;
+    delete[] A;
+    delete[] nonZeroUserIndexes;
+    delete[] nonZeroItemIndexes;
+    delete[] nonZeroElements;
+    delete[] B;
+
+    total_time = omp_get_wtime();
 
     if (std::getenv("LOG_RESULTS")) {
         std::ofstream logResults("../helpers/comparison.serial.csv", std::ios::app);
         logResults << inputFileName << ", ";
         logResults << 1 << ", ";
-
         std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
         int numberOfErrors = verifyResult(outputFileName, BV);
         logResults << numberOfErrors << ", ";
-
         logResults << numberOfUsers << ", ";
         logResults << numberOfItems << ", ";
         logResults << numberOfFeatures << ", ";
         logResults << numberOfNonZeroElements << ", ";
         logResults << numberOfIterations << ", ";
-        logResults << double(read_input - begin) << ", ";
-        logResults << double(initial_l_r - read_input) << ", ";
-        logResults << double(final_filtering - initial_l_r) << ", ";
-        logResults << double(end - final_filtering) << ", ";
-        logResults << double(end - begin);
+        logResults << double(read_input - start_time) << ", ";
+        logResults << double(initial_lr - read_input) << ", ";
+        logResults << double(final_filtering - initial_lr) << ", ";
+        logResults << double(total_time - final_filtering) << ", ";
+        logResults << double(total_time - start_time);
         logResults << std::endl;
         logResults.close();
     }
+
+    delete[] BV;
 
     return 0;
 }

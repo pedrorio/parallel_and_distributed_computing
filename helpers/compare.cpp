@@ -77,19 +77,19 @@ int main(int argc, char *argv[]) {
 
     for (auto &inputFileName: inputFileNames) {
         std::cout << "Running the serial version of " << inputFileName << std::endl;
-        system(("../serial/matFact ../instances/" + inputFileName).c_str());
+        system(("LOG_RESULTS=true ../serial/matFact ../instances/" + inputFileName).c_str());
         std::cout << "Run and logged " << inputFileName << std::endl;
         for (auto &numberOfTasks: numberOfParallelTasks) {
             std::cout << "Running " << inputFileName << "for " << numberOfTasks << " parallel tasks with OpenMP"
                       << std::endl;
-            system(("OMP_NUM_THREADS=" + std::to_string(numberOfTasks) +
+            system(("LOG_RESULTS=true OMP_NUM_THREADS=" + std::to_string(numberOfTasks) +
                     " ../omp/matFact-omp ../instances/" + inputFileName).c_str());
             std::cout << "Run and logged " << inputFileName << "for " << numberOfTasks << " parallel tasks"
                       << std::endl;
 
             std::cout << "Running " << inputFileName << "for " << numberOfTasks << " parallel tasks with MPI"
                       << std::endl;
-            system(("PMIX_MCA_gds=hash mpirun -n " + std::to_string(numberOfTasks) +
+            system(("LOG_RESULTS=true PMIX_MCA_gds=hash mpirun -n " + std::to_string(numberOfTasks) +
                     " ../mpi/matFact-mpi ../instances/" + inputFileName).c_str());
             std::cout << "Run and logged " << inputFileName << "for " << numberOfTasks << " parallel tasks"
                       << std::endl;
