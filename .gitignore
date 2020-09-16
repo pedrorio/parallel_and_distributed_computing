@@ -1,10 +1,4 @@
-!delivery/g24omp/omp
-delivery/g24omp/omp/matFact-omp
-delivery/g24omp/omp/test/unitTests
-
-!delivery/g24omp/serial
-delivery/g24omp/serial/matFact
-delivery/g24omp/serial/test/unitTests
+!Makefile
 
 **/*.cbp
 **/Makefile
@@ -16,17 +10,12 @@ delivery/g24omp/serial/test/unitTests
 
 .idea
 
-omp/report/*
-!omp/report/main.bib
-!omp/report/main.tex
-!omp/report/main.pdf
-!omp/report/images
+**/report/*
+!**/report/main.bib
+!**/report/main.tex
+!**/report/main.pdf
+!**/report/images
 
-helpers/compare
-!delivery/**/Makefile
+compare/compare
 
-mpi/matFact-mpi
-omp/matFact-omp
-serial/matFact
-
-!mpi/Makefile
+matFact-*

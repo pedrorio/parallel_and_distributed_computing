@@ -1,0 +1,8 @@
+fileName, numberOfThreads, resultsAreCorrect, numberOfUsers, numberOfItems, numberOfFeatures, numberOfNonZeroElements, numberOfIterations, readInput, initialLR, loop, finalFiltering, total
+../instances/inst1000-1000-100-2-30.in, 1, 0, 1000, 1000, 100, 15642, 1000, 1, 0, 95, 1, 97
+../instances/inst1.in, 1, 0, 4, 5, 2, 13, 100000, 0, 0, 0, 0, 0
+../instances/inst30-40-10-2-10.in, 1, 0, 30, 40, 10, 170, 20000, 0, 0, 1, 0, 1
+../instances/inst0.in, 1, 0, 3, 5, 2, 7, 5000, 0, 0, 0, 0, 0
+../instances/inst500-500-20-2-100.in, 1, 0, 500, 500, 20, 25328, 10000, 0, 0, 120, 0, 120
+../instances/inst2.in, 1, 0, 5, 7, 4, 15, 50000, 0, 0, 0, 0, 0
+../instances/inst200-10000-50-100-300.in, 1, 0, 200, 10000, 50, 39819, 1000, 0, 0, 106, 1, 107

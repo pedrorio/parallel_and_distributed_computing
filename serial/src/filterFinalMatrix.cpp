@@ -1,6 +1,7 @@
 #include <iostream>
 #include "filterFinalMatrix.h"
 #include "computeB.h"
+#include "printMatrix.h"
 
 void filterFinalMatrix(double *&A, double *&B,
                        int *&nonZeroUserIndexes,
@@ -30,6 +31,14 @@ void filterFinalMatrix(double *&A, double *&B,
             }
         }
         BV[i] = maxPosition;
+    }
+
+//    printMatrix("A", A, numberOfUsers, numberOfItems);
+//    printMatrix("L", L, numberOfUsers, numberOfFeatures);
+//    printMatrix("R", R, numberOfFeatures, numberOfUsers);
+//    printMatrix("B", B, numberOfUsers, numberOfItems);
+
+    for (int i = 0; i < numberOfUsers; i++) {
         std::cout << BV[i] << std::endl;
     }
 };

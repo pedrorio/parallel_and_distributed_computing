@@ -1,7 +1,9 @@
 #ifndef SERIAL_UPDATELR_H
 #define SERIAL_UPDATELR_H
 
-void updateLR(double *&A, int *&nonZeroUserIndexes,
+void updateLR(double *&A,
+              double *&prediction, double *&delta,
+              int *&nonZeroUserIndexes,
               int *&nonZeroItemIndexes,
               double *&L, double *&R,
               double *&StoreL, double *&StoreR,

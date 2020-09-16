@@ -1,20 +1,12 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(serial CXX)
+project(serial)
 set(CMAKE_CXX_STANDARD 11)
+include(GNUInstallDirs)
 
-add_executable(
-        matFact
-        matFact.cpp
-        src/readInput.cpp src/readInput.h
-        src/initialLR.cpp src/initialLR.h
-        src/updateLR.cpp src/updateLR.h
-        src/filterFinalMatrix.cpp src/filterFinalMatrix.h
-        src/verifyResult.cpp src/verifyResult.h
-        src/computeB.cpp src/computeB.h)
+include_directories(src)
 
-find_package(OpenMP REQUIRED)
-target_link_libraries(matFact PRIVATE OpenMP::OpenMP_CXX)
+add_subdirectory(src)
+add_subdirectory(tests)
 
-#add_subdirectory(test)
-#enable_testing()
+enable_testing()

@@ -1,6 +1,7 @@
 #include <iostream>
 #include "filterFinalMatrix.h"
 #include "computeB.h"
+#include "printMatrix.h"
 
 void filterFinalMatrix(double *&A, double *&B,
                        int *&nonZeroUserIndexes,
@@ -13,6 +14,7 @@ void filterFinalMatrix(double *&A, double *&B,
                        int *&BV) {
 
     int i, j, l;
+
     #pragma omp parallel shared(numberOfUsers, numberOfItems, numberOfFeatures, A, B, L, R, numberOfNonZeroElements, nonZeroUserIndexes, nonZeroItemIndexes, BV, std::cout)  default(none) private(i, l, j)
     {
         computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures, B);
@@ -22,7 +24,7 @@ void filterFinalMatrix(double *&A, double *&B,
             B[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = 0;
         }
 
-        #pragma omp for private(i, j) schedule(guided) ordered
+        #pragma omp for private(i, j) schedule(guided)
         for (int i = 0; i < numberOfUsers; i++) {
             double max = 0;
             int maxPosition;
@@ -35,8 +37,15 @@ void filterFinalMatrix(double *&A, double *&B,
                 }
             }
             BV[i] = maxPosition;
-            #pragma omp ordered
-            std::cout << BV[i] << std::endl;
         }
     };
+
+//    printMatrix("A", A, numberOfUsers, numberOfItems);
+//    printMatrix("L", L, numberOfUsers, numberOfFeatures);
+//    printMatrix("R", R, numberOfFeatures, numberOfUsers);
+//    printMatrix("B", B, numberOfUsers, numberOfItems);
+
+    for (int i = 0; i < numberOfUsers; i++) {
+        std::cout << BV[i] << std::endl;
+    }
 };
