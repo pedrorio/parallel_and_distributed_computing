@@ -1,11 +1,8 @@
 #include "readInput.h"
 
-#define ROOT 0
+#include <stdexcept>
 
-#define BLOCK_LOW(id, p, n) ((id)*(n)/(p))
-#define BLOCK_HIGH(id, p, n) (BLOCK_LOW((id)+1,p,n) - 1)
-#define BLOCK_SIZE(id, p, n) (BLOCK_HIGH(id,p,n) - BLOCK_LOW(id,p,n) + 1)
-#define BLOCK_OWNER(index, p, n) (((p)*((index)+1)-1)/(n))
+#define ROOT 0
 
 void readInput(std::string &inputFileName, double *&A,
                int *&nonZeroUserIndexes, int *&nonZeroItemIndexes,
@@ -18,50 +15,75 @@ void readInput(std::string &inputFileName, double *&A,
     delete[] nonZeroItemIndexes;
     delete[] nonZeroElements;
 
-    std::vector<std::string> fileCopy;
-    std::string line;
-    int numberOfLines;
+    // Root reads and fully parses the file into temporaries, recording whether
+    // the instance is well-formed. Non-root ranks never touch the filesystem.
+    int ok = 1;
+    std::vector<int> rootUser, rootItem;
+    std::vector<double> rootElem;
 
     if (processId == ROOT) {
-        std::ifstream countFileLines(inputFileName);
-        for (numberOfLines = 0; std::getline(countFileLines, line); numberOfLines++) {
-            fileCopy.push_back(line);
-        };
-        countFileLines.close();
-    }
-
-    if (processId == ROOT) {
-        for (int k = 0; k < 4; k++) {
-            line = fileCopy[k];
-            switch (k) {
-                case 0: {
-                    numberOfIterations = std::stoi(line);
-                    break;
-                }
-                case 1: {
-                    convergenceCoefficient = std::stod(line);
-                    break;
-                }
-                case 2: {
-                    numberOfFeatures = std::stoi(line);
-                    break;
-                }
-                case 3: {
-                    std::istringstream iss(line);
-
-                    std::vector<std::string> results(std::istream_iterator<std::string>{iss},
-                                                     std::istream_iterator<std::string>());
-                    numberOfUsers = std::stoi(results[0]);
-                    numberOfItems = std::stoi(results[1]);
-                    numberOfNonZeroElements = std::stoi(results[2]);
-                    break;
-                }
+        std::vector<std::string> fileCopy;
+        std::ifstream fileLines(inputFileName);
+        if (!fileLines) {
+            ok = 0;
+        } else {
+            for (std::string line; std::getline(fileLines, line);) {
+                fileCopy.push_back(line);
             }
+            fileLines.close();
+        }
+
+        try {
+            if (!ok || fileCopy.size() < 4) {
+                throw std::runtime_error("missing header");
+            }
+            numberOfIterations = std::stoi(fileCopy[0]);
+            convergenceCoefficient = std::stod(fileCopy[1]);
+            numberOfFeatures = std::stoi(fileCopy[2]);
+
+            std::istringstream iss(fileCopy[3]);
+            std::vector<std::string> dims(std::istream_iterator<std::string>{iss},
+                                          std::istream_iterator<std::string>());
+            if (dims.size() < 3) {
+                throw std::runtime_error("bad dimensions line");
+            }
+            numberOfUsers = std::stoi(dims[0]);
+            numberOfItems = std::stoi(dims[1]);
+            numberOfNonZeroElements = std::stoi(dims[2]);
+
+            if (numberOfNonZeroElements < 0 ||
+                (int) fileCopy.size() < 4 + numberOfNonZeroElements) {
+                throw std::runtime_error("not enough non-zero lines");
+            }
+
+            for (int m = 0; m < numberOfNonZeroElements; m++) {
+                std::istringstream lss(fileCopy[m + 4]);
+                std::vector<std::string> results(std::istream_iterator<std::string>{lss},
+                                                 std::istream_iterator<std::string>());
+                if (results.size() < 3) {
+                    throw std::runtime_error("bad non-zero line");
+                }
+                rootUser.push_back(std::stoi(results[0]));
+                rootItem.push_back(std::stoi(results[1]));
+                rootElem.push_back(std::stod(results[2]));
+            }
+        } catch (const std::exception &) {
+            ok = 0;
         }
     }
 
-    // REFACTOR AS 2 ARRAYS
-    MPI_Bcast(&numberOfLines, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+    // Agree on success BEFORE any rank commits to the data broadcasts below. If
+    // the root could not read a valid instance, every rank aborts together
+    // instead of leaving the non-root ranks blocked forever in MPI_Bcast.
+    MPI_Bcast(&ok, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+    if (!ok) {
+        if (processId == ROOT) {
+            std::cerr << "matFact-mpi: could not read a valid instance from '"
+                      << inputFileName << "'" << std::endl;
+        }
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
     MPI_Bcast(&numberOfIterations, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&convergenceCoefficient, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfFeatures, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
@@ -69,58 +91,29 @@ void readInput(std::string &inputFileName, double *&A,
     MPI_Bcast(&numberOfItems, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     MPI_Bcast(&numberOfNonZeroElements, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
-    A = new double[numberOfUsers * numberOfItems];
-    for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
-        A[i] = 0;
-    }
-
-    auto *StoreA = new double[numberOfUsers * numberOfItems];
-    for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
-        StoreA[i] = 0;
-    }
-
     nonZeroUserIndexes = new int[numberOfNonZeroElements];
-
     nonZeroItemIndexes = new int[numberOfNonZeroElements];
-
     nonZeroElements = new double[numberOfNonZeroElements];
 
-    for (int i = 0; i < numberOfNonZeroElements; i++) {
-        nonZeroUserIndexes[i] = 0;
-        nonZeroItemIndexes[i] = 0;
-        nonZeroElements[i] = 0;
-    }
-
-    // SCATTERV
     if (processId == ROOT) {
         for (int m = 0; m < numberOfNonZeroElements; m++) {
-            line = fileCopy[m + 4];
-            std::istringstream iss(line);
-            std::vector<std::string> results(std::istream_iterator<std::string>{iss},
-                                             std::istream_iterator<std::string>());
-            int userIndex = std::stoi(results[0]);
-            int itemIndex = std::stoi(results[1]);
-            double element = std::stod(results[2]);
-
-            nonZeroUserIndexes[m] = userIndex;
-            nonZeroItemIndexes[m] = itemIndex;
-            nonZeroElements[m] = element;
+            nonZeroUserIndexes[m] = rootUser[m];
+            nonZeroItemIndexes[m] = rootItem[m];
+            nonZeroElements[m] = rootElem[m];
         }
     }
 
-    // SCATTERV
-    MPI_Bcast(&nonZeroUserIndexes[0], numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
-    MPI_Bcast(&nonZeroItemIndexes[0], numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
-    MPI_Bcast(&nonZeroElements[0], numberOfNonZeroElements, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast(nonZeroUserIndexes, numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast(nonZeroItemIndexes, numberOfNonZeroElements, MPI_INT, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast(nonZeroElements, numberOfNonZeroElements, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
 
-    // Parallelised
-    int startIndex = BLOCK_LOW(processId, numberOfProcesses, numberOfNonZeroElements);
-    int endIndex = startIndex + BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements);
-    for (int l = startIndex; l < endIndex; l++) {
-        StoreA[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = nonZeroElements[l];
+    // Every process reconstructs the full sparse matrix A locally. A and all the
+    // non-zero arrays are now replicated identically on every rank.
+    A = new double[numberOfUsers * numberOfItems];
+    for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
+        A[i] = 0.0;
     }
-
-    MPI_Allreduce(&StoreA[0], &A[0], numberOfUsers * numberOfItems, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-
-    delete[] StoreA;
+    for (int l = 0; l < numberOfNonZeroElements; l++) {
+        A[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = nonZeroElements[l];
+    }
 }

@@ -3,6 +3,7 @@
 **/*.cbp
 **/Makefile
 **/*.cmake
+!mpi/tests/run_compare.cmake
 **/CMakeCache.txt
 **/cmake-build-debug
 **/CMakeFiles
