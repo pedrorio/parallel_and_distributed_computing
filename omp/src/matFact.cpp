@@ -19,7 +19,7 @@ void matFact(std::string inputFileName) {
     auto *nonZeroItemIndexes = new int[0];
     auto *nonZeroElements = new double[0];
 
-    int i, k, numberOfIterations, numberOfFeatures, numberOfUsers, numberOfItems, numberOfNonZeroElements;
+    int numberOfIterations, numberOfFeatures, numberOfUsers, numberOfItems, numberOfNonZeroElements;
     double convergenceCoefficient;
 
     readInput(inputFileName, A, nonZeroUserIndexes, nonZeroItemIndexes, nonZeroElements,

@@ -9,18 +9,20 @@ void updateLR(double *&A,
               int &numberOfUsers, int &numberOfItems, int &numberOfFeatures,
               int &numberOfNonZeroElements,
               double &convergenceCoefficient) {
-    int i, l, k;
+    int l, k;
 
     #pragma omp parallel shared(numberOfNonZeroElements, numberOfUsers, numberOfItems, numberOfFeatures, nonZeroUserIndexes, nonZeroItemIndexes, prediction, A, L, R, StoreL, StoreR, convergenceCoefficient, delta) default(none)
     {
-        #pragma omp for private(i, k) schedule(static)
-        for (int i = 0; i < numberOfFeatures; i++) {
-            for (int k = 0; k < numberOfUsers; k++) {
-                StoreL[k * numberOfFeatures + i] = L[k * numberOfFeatures + i];
-            }
-            for (int k = 0; k < numberOfItems; k++) {
-                StoreR[i * numberOfItems + k] = R[i * numberOfItems + k];
-            }
+        // Snapshot L and R as plain contiguous (stride-1) copies. The two copies
+        // are independent, so the first carries `nowait` to avoid an extra barrier.
+        #pragma omp for schedule(static) nowait
+        for (int idx = 0; idx < numberOfUsers * numberOfFeatures; idx++) {
+            StoreL[idx] = L[idx];
+        }
+
+        #pragma omp for schedule(static)
+        for (int idx = 0; idx < numberOfFeatures * numberOfItems; idx++) {
+            StoreR[idx] = R[idx];
         }
 
         #pragma omp for private(l, k) schedule(static)
@@ -42,5 +44,5 @@ void updateLR(double *&A,
                 R[k * numberOfItems + nonZeroItemIndexes[l]] += convergenceCoefficient * (2 * delta[l] * StoreL[nonZeroUserIndexes[l] * numberOfFeatures + k]);
             }
         }
-    };
-};
+    }
+}

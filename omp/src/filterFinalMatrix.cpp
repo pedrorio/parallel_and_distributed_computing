@@ -38,7 +38,7 @@ void filterFinalMatrix(double *&A, double *&B,
             }
             BV[i] = maxPosition;
         }
-    };
+    }
 
 //    printMatrix("A", A, numberOfUsers, numberOfItems);
 //    printMatrix("L", L, numberOfUsers, numberOfFeatures);
@@ -48,4 +48,4 @@ void filterFinalMatrix(double *&A, double *&B,
     for (int i = 0; i < numberOfUsers; i++) {
         std::cout << BV[i] << std::endl;
     }
-};
+}

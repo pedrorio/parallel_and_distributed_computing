@@ -2,7 +2,7 @@
 #define SERIAL_UPDATELR_H
 
 void updateLR(double *&A,
-              double *&prediction, double *&delta,
+              double *&delta,
               int *&nonZeroUserIndexes,
               int *&nonZeroItemIndexes,
               double *&L, double *&R,

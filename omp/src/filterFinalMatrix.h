@@ -1,5 +1,5 @@
-#ifndef SERIAL_FILTERFINALMATRIX_H
-#define SERIAL_FILTERFINALMATRIX_H
+#ifndef OMP_FILTERFINALMATRIX_H
+#define OMP_FILTERFINALMATRIX_H
 
 void filterFinalMatrix(double *&A, double *&B,
                        int *&nonZeroUserIndexes,
@@ -12,4 +12,4 @@ void filterFinalMatrix(double *&A, double *&B,
                        int *&BV);
 
 
-#endif //SERIAL_FILTERFINALMATRIX_H
+#endif //OMP_FILTERFINALMATRIX_H

@@ -17,10 +17,10 @@ int verifyResult(std::string &fileName, int *&BV) {
     inFile.close();
 
     int numberOfFalses = 0;
-    for (int i = 0; i < realValues.size(); i++) {
+    for (size_t i = 0; i < realValues.size(); i++) {
         if (BV[i] != realValues[i]) {
             numberOfFalses++;
         }
     }
     return numberOfFalses;
-};
+}

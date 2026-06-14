@@ -65,6 +65,6 @@ void readInput(std::string &inputFileName, double *&A,
                 nonZeroElements[numberOfLines - 4] = element;
             }
         }
-    };
+    }
     fileLines.close();
 }

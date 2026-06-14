@@ -1,5 +1,5 @@
-#ifndef SERIAL_READINPUT_H
-#define SERIAL_READINPUT_H
+#ifndef MPI_READINPUT_H
+#define MPI_READINPUT_H
 
 #include "mpi.h"
 #include <cstdio>
@@ -18,4 +18,4 @@ void readInput(std::string &inputFileName, double *&A,
                 int &numberOfIterations, int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers,
                 int &numberOfItems, int &numberOfNonZeroElements, int &processId, int &numberOfProcesses);
 
-#endif //SERIAL_READINPUT_H
+#endif //MPI_READINPUT_H
