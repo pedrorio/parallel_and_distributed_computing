@@ -1,5 +1,7 @@
-# CTest driver, invoked via `cmake -P`. Runs the MPI solver under mpirun and
-# checks its printed recommendations.
+# CTest driver, invoked via `cmake -P`. Runs the 2D-grid solver under mpirun and
+# checks its printed recommendations. Identical in spirit to mpi/tests: the binary
+# is parameterised, and OMP_NUM_THREADS (when a test pins it) is inherited from the
+# environment, so the same driver covers both the pure-MPI and hybrid runs.
 #
 # Required -D variables:
 #   MPIEXEC   path to mpirun/mpiexec

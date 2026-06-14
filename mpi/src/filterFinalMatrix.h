@@ -1,17 +1,15 @@
-#ifndef MPI_FILTERFINALMATRIX_H
-#define MPI_FILTERFINALMATRIX_H
+#ifndef MPIGRID_FILTERFINALMATRIX_H
+#define MPIGRID_FILTERFINALMATRIX_H
 
-#include <iostream>
-#include "computeB.h"
+#include "cell.h"
+#include "config.h"
+#include "grid.h"
 
-void filterFinalMatrix(double *A, double *B,
-                       int *nonZeroUserIndexes,
-                       int *nonZeroItemIndexes,
-                       double *nonZeroElements,
-                       double *L,
-                       double *R,
-                       int numberOfUsers, int numberOfItems, int numberOfFeatures,
-                       int numberOfNonZeroElements,
-                       int *BV);
+// Build B = L*R on this cell, mask the known non-zeros, take the per-user argmax
+// (combined across the row with MPI_MAXLOC, smallest item index on ties to match
+// serial), gather the recommendations to the root in user order, and print one item
+// index per user.
+void filterFinalMatrix(const Grid &g, const Config &cfg, const Cell &cell,
+                       const double *L, const double *R);
 
-#endif //MPI_FILTERFINALMATRIX_H
+#endif  // MPIGRID_FILTERFINALMATRIX_H

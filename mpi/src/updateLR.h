@@ -1,25 +1,20 @@
-#ifndef MPI_UPDATELR_H
-#define MPI_UPDATELR_H
+#ifndef MPIGRID_UPDATELR_H
+#define MPIGRID_UPDATELR_H
 
-// One gradient-descent iteration, distributed over MPI processes.
-//
-// Every process holds full copies of L and R. The non-zero entries of A are
-// block-partitioned across processes; each process computes the gradient
-// contributions of its own block into the increment buffers dL/dR (read-only on
-// the snapshots StoreL/StoreR), the contributions are summed across all
-// processes with MPI_Allreduce, and the summed increment is applied to the
-// snapshot. The result is mathematically identical to the serial update and
-// independent of the number of processes.
-//
-// StoreL, StoreR, dL and dR are caller-allocated scratch buffers
-// (StoreL/dL sized numberOfUsers*numberOfFeatures, StoreR/dR sized
-// numberOfFeatures*numberOfItems).
-void updateLR(double *A,
-              int *nonZeroUserIndexes, int *nonZeroItemIndexes,
-              double *L, double *R, double *StoreL, double *StoreR,
-              double *dL, double *dR,
-              int numberOfUsers, int numberOfItems, int numberOfFeatures,
-              int numberOfNonZeroElements, double convergenceCoefficient,
-              int processId, int numberOfProcesses);
+#include "cell.h"
+#include "config.h"
+#include "grid.h"
 
-#endif //MPI_UPDATELR_H
+// One gradient-descent iteration on the 2D grid, expressed as ORPHANED OpenMP
+// worksharing: it MUST be called from inside an enclosing `#pragma omp parallel`
+// region (see matFact.cpp), so the per-rank work is shared across threads while the
+// region is forked only once for the whole run. Each thread accumulates a private
+// partial of dL/dR (array reduction); the reduced per-rank gradient is then summed
+// across the ROW communicator (dL) and COLUMN communicator (dR) by the main thread
+// only (MPI_THREAD_FUNNELED) and applied to L/R. dL/dR are caller-allocated scratch
+// (sizes uLocal*features and features*iLocal). With one thread this is exactly the
+// pure-MPI iteration.
+void updateLR(const Grid &g, const Config &cfg, const Cell &cell,
+              double *L, double *R, double *dL, double *dR);
+
+#endif  // MPIGRID_UPDATELR_H

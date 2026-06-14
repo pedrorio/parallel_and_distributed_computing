@@ -1,4 +1,4 @@
-# `mpi-grid` — distributed matrix factorisation on a 2D process grid
+# `mpi` — distributed matrix factorisation on a 2D process grid
 
 A hybrid MPI + OpenMP solver for the recommender factorisation `A ≈ L·R`. It produces
 the **same recommendations as the serial version**, bit-for-bit, at any process count
@@ -6,11 +6,12 @@ and grid shape.
 
 ## Why a 2D grid
 
-The earlier `mpi/` version replicates `L` and `R` on every rank and reduces the whole
-gradient over `MPI_COMM_WORLD` each iteration — so memory is `O(L+R)` per rank and the
-dense `Allreduce` becomes a communication ceiling (it *anti-scales* on wide instances).
+A naive **replicate-all** design would keep full copies of `L` and `R` on every rank and
+reduce the whole gradient over `MPI_COMM_WORLD` each iteration — so memory is `O(L+R)` per
+rank and the dense `Allreduce` becomes a communication ceiling (it *anti-scales* on wide
+instances).
 
-`mpi-grid` instead arranges the ranks as a `Pr × Pc` mesh:
+`mpi` instead arranges the ranks as a `Pr × Pc` mesh:
 
 - `L` is split by **user-rows** across the grid rows, `R` by **item-columns** across the
   grid columns.
@@ -27,16 +28,18 @@ Determinism is preserved by a *generate-and-discard* init: every rank walks the 
 
 ## Module layout
 
+The driver sits at the top level and the modules live in `src/`, mirroring `mpi/`:
+
 | file | role |
 |---|---|
 | `matFact.cpp` | driver: pipeline orchestration + the hoisted OpenMP region |
-| `grid.{h,cpp}` | `Grid` struct, block-partition helpers, mesh + row/col sub-communicators |
-| `config.h`, `cell.h` | plain data: problem dimensions; this rank's block + local non-zeros |
-| `readInput.{h,cpp}` | root parse + validate + broadcast |
-| `distribute.{h,cpp}` | route non-zeros to grid cells (`Scatterv`) |
-| `initialLR.{h,cpp}` | deterministic slice init |
-| `updateLR.{h,cpp}` | one gradient step (orphaned OpenMP worksharing + row/col `Allreduce`) |
-| `filterFinalMatrix.{h,cpp}` | `B = L·R`, mask, per-user argmax, gather, print |
+| `src/grid.{h,cpp}` | `Grid` struct, block-partition helpers, mesh + row/col sub-communicators |
+| `src/config.h`, `src/cell.h` | plain data: problem dimensions; this rank's block + local non-zeros |
+| `src/readInput.{h,cpp}` | root parse + validate + broadcast |
+| `src/distribute.{h,cpp}` | route non-zeros to grid cells (`Scatterv`) |
+| `src/initialLR.{h,cpp}` | deterministic slice init |
+| `src/updateLR.{h,cpp}` | one gradient step (orphaned OpenMP worksharing + row/col `Allreduce`) |
+| `src/filterFinalMatrix.{h,cpp}` | `B = L·R`, mask, per-user argmax, gather, print |
 
 ## Build
 
@@ -45,17 +48,17 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 # or directly (macOS / Apple clang + libomp):
 mpicxx -std=c++11 -O3 -Xclang -fopenmp \
   -I$(brew --prefix libomp)/include -L$(brew --prefix libomp)/lib -lomp \
-  *.cpp -o matFact-grid
+  matFact.cpp src/*.cpp -o matFact-mpi
 ```
 
 ## Run
 
 ```sh
 # pure MPI (default: one thread per rank)
-mpirun -np <P> ./matFact-grid instance.in
+mpirun -np <P> ./matFact-mpi instance.in
 
 # hybrid: opt into threads explicitly, ideally one rank per socket
-OMP_NUM_THREADS=<T> mpirun -np <P> ./matFact-grid instance.in
+OMP_NUM_THREADS=<T> mpirun -np <P> ./matFact-mpi instance.in
 ```
 
 `P` is factored into a balanced `Pr × Pc` automatically (`MPI_Dims_create`); it works at
