@@ -1,8 +1,8 @@
-#ifndef SERIAL_UPDATELR_H
-#define SERIAL_UPDATELR_H
+#ifndef OMP_UPDATELR_H
+#define OMP_UPDATELR_H
 
 void updateLR(double *&A,
-              double *&prediction, double *&delta,
+              double *&delta,
               int *&nonZeroUserIndexes,
               int *&nonZeroItemIndexes,
               double *&L, double *&R,
@@ -11,4 +11,4 @@ void updateLR(double *&A,
               int &numberOfNonZeroElements,
               double &convergenceCoefficient);
 
-#endif //SERIAL_UPDATELR_H
+#endif //OMP_UPDATELR_H

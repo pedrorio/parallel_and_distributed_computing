@@ -2,28 +2,15 @@
 \documentclass[twocolumn]{article}
 
 % Packages
-\usepackage[T1]{fontenc} % Used
-\usepackage[utf8]{inputenc} % Used
-\usepackage{indentfirst} % Used
-\usepackage{lipsum} % Used
-\usepackage{amsmath} % Used
-\usepackage[margin=1in]{geometry}  % Used
-\usepackage[font=small,labelfont=bf]{caption} % Used
-\usepackage{hyperref} % Used
-\usepackage{fancyhdr} % Used
-\usepackage{tikz} % Used
-\usetikzlibrary{graphs} % Used
-\usetikzlibrary{chains} % Used
-\usetikzlibrary{positioning} % Used
-\usetikzlibrary{quotes} % Used
-
-\usepackage{subcaption}
-\usepackage{newfloat}
-
-\usepackage{booktabs} % Used
-\usepackage{tikz-network} % Used
-
-\usepackage{multirow}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage[margin=1in]{geometry}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
 \usepackage{graphicx}
 
 \pagestyle{fancy}
@@ -46,7 +33,7 @@
     \includegraphics[scale=0.2]{images/logo.png}\\
     \vskip 0.5em
     \Huge Distributed and Parallel Computing\\
-    \LARGE OpenMPI Report\\
+    \LARGE MPI Report\\
 }
 
 \author{
@@ -90,86 +77,115 @@
     The matrix B is computed as the multiplication of matrices L and R. Afterwards, for each row of matrix B, the maximum value is computed without taking into account the the non zero elements.
     The location of the values are stored in a vector and streamed to the standard output.
 
-    \section{OpenMP Version}\label{sec:openmp-version}
+    \section{MPI Version}\label{sec:mpi-version}
+    The MPI version uses a \emph{replicate-all} design: every process holds full copies of
+    $L$ and $R$, and the only data exchanged each iteration is the gradient.
 
     \subsection{Foster Methodology}
     \label{subsec:foster-methodology}
+
     \subsubsection{ReadInput}
-    \textbf{Partitioning}
-
-    \textbf{Communication}
-
-    \textbf{Agglomeration and Mapping}
+    \textbf{Partitioning.} The instance is parsed once, on the root.
+    \textbf{Communication.} A validity status is broadcast first (so a malformed file
+    aborts every rank together rather than deadlocking), then the header and the non-zero
+    arrays are broadcast to all processes.
+    \textbf{Agglomeration and Mapping.} After the broadcast every process holds the same
+    $A$ and non-zero lists.
 
     \subsubsection{InitialLR}
-    \textbf{Partitioning}
-
-    \textbf{Communication}
-
-    \textbf{Agglomeration and Mapping}
+    \textbf{Partitioning.} None: the routine is deterministic (\texttt{srandom(1)}).
+    \textbf{Communication.} None --- because the seed is fixed, every process generates
+    \emph{identical} $L$ and $R$ independently, so the factors never have to be broadcast.
+    \textbf{Agglomeration and Mapping.} Each process keeps a full copy of $L$ and $R$.
 
     \subsubsection{UpdateLR}
-    \textbf{Partitioning}
-
-    \textbf{Communication}
-
-    \textbf{Agglomeration and Mapping}
+    \textbf{Partitioning.} The non-zero list is split into one contiguous block per
+    process (Quinn's \texttt{BLOCK\_LOW}/\texttt{SIZE}); each process computes the gradient
+    increments for its block only.
+    \textbf{Communication.} The partial gradients $dL$ and $dR$ are summed with two
+    \texttt{MPI\_Allreduce(MPI\_IN\_PLACE, \ldots, MPI\_SUM)} calls, so each process ends
+    the iteration with the same global increment.
+    \textbf{Agglomeration and Mapping.} Each process applies that increment to its own
+    snapshot of the factors, keeping every copy identical.
 
     \subsubsection{FilterFinalMatrix}
-    \textbf{Partitioning}
+    \textbf{Partitioning.} Performed on the root only.
+    \textbf{Communication.} None --- $L$ and $R$ are already identical everywhere.
+    \textbf{Agglomeration and Mapping.} The root forms $B = L \cdot R$, masks the known
+    entries, and prints one recommendation per user.
 
-    \textbf{Communication}
-
-    \textbf{Agglomeration and Mapping}
-
-
-    \subsection{Decompositions}
+    \subsection{Decomposition}
     \label{subsec:decompostions}
-    In our openMP implementation we used the Functional and Data parallelism decompositions in the following way:
-
-    \textbf{Data Parallelism} - was firstly used to read the input files and to perfom the calculations of an initial predicted value of B ($L$ x $R$), the delta coefficient, updating the previous $L$ and $R$ matrices and in the calculation of the final matrix B\@.
+    The parallelism is a \emph{domain decomposition of the gradient sum}: each non-zero's
+    residual and increment are independent, so the non-zeros are split across processes and
+    their contributions summed. Because the gradient is a sum the partition is arbitrary;
+    we use equal contiguous blocks.
 
     \subsection{Synchronization}
     \label{subsec:synchronization}
-    In our implementation we were not faced with the necessity of explicitly using synchronization controls, since our code is divided into 4 main blocks, meaning that the synchronization happens implicitly after each block is run.
-    Also, we note that synchronization happens after each block of code has finished.
+    The two \texttt{Allreduce} calls per iteration are the only synchronisation: they are
+    collective, so every process blocks until the global gradient is ready before applying
+    it. The snapshot \texttt{StoreL}/\texttt{StoreR} guarantees that all reads in an
+    iteration use the pre-iteration factors, so the result is independent of the partition
+    and matches the serial output bit-for-bit at any process count.
 
 
     \section{Optimisations} \label{sec:optimisations}
 
-    In order to optimise the program we parallelized all the blocks except initialLR. The function cannot be parallelized because it incorporates a random function that must be called sequentially.
-    If the function was parallelized , the results would be wrong due to data races among the threads.
-    Regarding the other blocks:
+    The replicate-all design is deliberately simple, and two choices keep it both correct
+    and cheap.
 
-    \subsection{ReadInput}\label{subsec:readinput2}
-    The first parallelization zone in the program happens in the read input function.
-    This function, as the name describes, will read the lines of the file and save it on variables.
-    First, we save the lines through a 'for' to a vector since it is not possible to parallelise.
-    Then, we read the first 4 lines to save number of Iterations, convergence coefficient, number of features and others.
-    Lastly, we have to read the rest of the lines depending in each file.
-    In order to do that, we parallelized the for cycle by using the schedule 'guided' to optimize the parallelization.
-    In guided schedule, is assigned to each thread a block of decreasing size.
-    The size of each block is proportional to the number of unassigned iterations divided by the number of threads, decreasing to chunk.
+    \subsection{Deterministic init avoids a broadcast}\label{subsec:detinit}
+    Because \texttt{initialLR} is seeded with a fixed value, every process can generate the
+    \emph{same} $L$ and $R$ on its own. The factors --- the largest arrays in the program
+    --- therefore never travel across the network; only the per-iteration gradient does.
+    A sequential property of the serial code (a fixed RNG seed) becomes a communication
+    saving in the parallel one.
 
-    \subsection{UpdateLR}\label{subsec:updatelr2}
-    The block updateLR is also parallelized.
-    All the function updateLR is parallelized because we had three mini fuctions inside updateLR and these are composed by cycles for's.
-    Obviously all these are parallelized.
-    The first mini function has a "pragma omp for collapse(2)", which means that two cycles for are transformed into one and this one is parallelized with a schedule guided.
-    The second mini fuction has a cycle for parallelized with schedule guided.
-    The last one also has a "pragma omp for collapse(2)" for the same reason.
-    We decided to use guided schedule on the first and third mini function because it exists some iteration that are bigger than others.
-    Due to these iterations guided schedule improve the parallelization.
+    \subsection{One \texttt{Allreduce} instead of many messages}\label{subsec:allreduce}
+    Summing partial gradients with \texttt{MPI\_Allreduce} (rather than gathering to the
+    root and scattering back) lets the MPI library use an efficient tree/ring collective
+    and leaves the result already replicated on every process, exactly what the next
+    iteration needs. \texttt{MPI\_IN\_PLACE} avoids a second buffer.
 
-    \subsection{FilterFinalMatrix}\label{subsec:filterfinalmatrix}
-    The other zone that is parallelized is the 'filterFinalMatrix' function.
-    This function consists in 'computeB' function and in three for cycles which are parallelized.
-    As the name describes the computeB function will calculate B for each matrix position.
-    Inside this function exists a triple loop which we parallelized with a '\#pragma omp for collapse(3)'.
-    The three for cycles that belong to the 'filterFinalMatrix' function are individually parallelized.
-    Two of them are settled with schedule guided.
-    The last one is settled with ordered.
-    It needs this setting because the cycle for is printing on the console and it needs to print in the correct order.
+    \section{Implications for Parallel and Distributed Computing}\label{sec:pdc}
+
+    \subsection{Replicate-all trades communication for simplicity}\label{subsec:tradeoff}
+    Keeping a full copy of $L$ and $R$ on every process makes the code short and the
+    decomposition trivial, but it has a price: the per-iteration \texttt{Allreduce} moves
+    the \emph{whole} gradient, $O(\textit{features} \cdot (\textit{users} +
+    \textit{items}))$ doubles, and that volume does \emph{not} shrink as processes are
+    added. Compute per process falls as $1/P$ while communication per process stays
+    constant, so at some point communication dominates.
+
+    \subsection{The strong-scaling ceiling}\label{subsec:ceiling}
+    This is the central lesson. On compute-heavy instances the design scales for a while;
+    on \emph{wide} instances (a large $R$, hence a large gradient) it reaches the ceiling
+    early and can even \emph{anti-scale} --- adding processes makes it slower, because the
+    extra ranks add reduction traffic faster than they remove work. Replicate-all is a
+    correct baseline, not a scalable one.
+
+    \subsection{Memory does not scale either}\label{subsec:memory}
+    Every process stores full $L$, $R$ and $A$, so the largest solvable problem is bounded
+    by a \emph{single} node's memory, no matter how many nodes are used. A scalable design
+    must distribute the factors, not just the work.
+
+    \subsection{Towards a scalable design}\label{subsec:scalable}
+    Both limits point the same way: stop replicating. Arranging the processes as a
+    $P_r \times P_c$ grid and partitioning $L$ by user-rows and $R$ by item-columns makes
+    each process own a slice of size $O((\textit{users} \cdot \textit{features} +
+    \textit{features} \cdot \textit{items})/\sqrt{P})$, and replaces the global
+    \texttt{Allreduce} with smaller reductions over row and column sub-communicators ---
+    so communication \emph{and} memory fall with $P$. Within each process the gradient can
+    be threaded with OpenMP (a hybrid model), turning the per-thread write conflict into
+    the same array reduction used in the shared-memory version. The replicate-all program
+    is the correctness oracle these refinements are validated against.
+
+    \subsection{A serial tail still bounds the result}\label{subsec:amdahl}
+    The final $B = L \cdot R$ and arg-max run only on the root, an
+    $O(\textit{users} \cdot \textit{items} \cdot \textit{features})$ sequential tail. By
+    Amdahl's law it caps the achievable speedup; distributing that stage too (as the grid
+    design does) is what removes the cap.
 
     \section{Evaluation}\label{sec:evaluation}
 

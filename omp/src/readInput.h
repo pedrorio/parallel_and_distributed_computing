@@ -1,5 +1,5 @@
-#ifndef SERIAL_READINPUT_H
-#define SERIAL_READINPUT_H
+#ifndef OMP_READINPUT_H
+#define OMP_READINPUT_H
 
 #include <iostream>
 #include <fstream>
@@ -13,4 +13,4 @@ void readInput(std::string &inputFileName, double *&A,
                int &numberOfIterations, int &numberOfFeatures, double &convergenceCoefficient, int &numberOfUsers,
                int &numberOfItems, int &numberOfNonZeroElements);
 
-#endif //SERIAL_READINPUT_H
+#endif //OMP_READINPUT_H

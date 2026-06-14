@@ -2,28 +2,15 @@
 \documentclass[twocolumn]{article}
 
 % Packages
-\usepackage[T1]{fontenc} % Used
-\usepackage[utf8]{inputenc} % Used
-\usepackage{indentfirst} % Used
-\usepackage{lipsum} % Used
-\usepackage{amsmath} % Used
-\usepackage[margin=1in]{geometry}  % Used
-\usepackage[font=small,labelfont=bf]{caption} % Used
-\usepackage{hyperref} % Used
-\usepackage{fancyhdr} % Used
-\usepackage{tikz} % Used
-\usetikzlibrary{graphs} % Used
-\usetikzlibrary{chains} % Used
-\usetikzlibrary{positioning} % Used
-\usetikzlibrary{quotes} % Used
-
-\usepackage{subcaption}
-\usepackage{newfloat}
-
-\usepackage{booktabs} % Used
-\usepackage{tikz-network} % Used
-
-\usepackage{multirow}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage[margin=1in]{geometry}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
 \usepackage{graphicx}
 
 \pagestyle{fancy}
@@ -94,58 +81,103 @@
 
     \section{OpenMP Version}\label{sec:openmp-version}
 
-    \subsection{Decompositions}
+    \subsection{Decomposition}
     \label{subsec:decompostions}
-    In our openMP implementation we used the Functional and Data parallelism decompositions in the following way:
+    The factorisation is a data-parallel computation. \texttt{updateLR} divides the
+    non-zero list across threads --- each computes predictions and gradient increments
+    for its share --- and the final stage divides matrix $B$ by rows. \texttt{initialLR}
+    is left sequential: it draws pseudo-random numbers whose order is part of the
+    specification, so parallelising it would race on the generator and change the result.
 
-    \textbf{Data Parallelism} - was firstly used to read the input files and to perfom the calculations of an initial predicted value of B ($L$ x $R$), the delta coefficient, updating the previous $L$ and $R$ matrices and in the calculation of the final matrix B\@.
+    \subsection{One parallel region for the whole run}
+    \label{subsec:single-region}
+    Rather than open a parallel region inside every iteration --- which forks and joins a
+    thread team \emph{numberOfIterations} times --- we open \emph{one} region in
+    \texttt{matFact} that spans the entire iteration loop. The worksharing constructs
+    inside \texttt{updateLR} are \emph{orphaned}: they bind to that enclosing region, so
+    the team is created once and reused for every iteration.
 
     \subsection{Synchronization}
     \label{subsec:synchronization}
-    In our implementation we were not faced with the necessity of explicitly using synchronization controls, since our code is divided into 4 main blocks, meaning that the synchronization happens implicitly after each block is run.
-    Also, we note that synchronization happens after each block of code has finished.
+    Each iteration must read a consistent snapshot of $L$ and $R$. The two snapshot
+    copies are independent of each other, so they carry \texttt{nowait}; the prediction
+    loop keeps its implicit barrier, which orders the snapshot writes before the update
+    reads them. The barrier at the end of the last worksharing loop preserves the
+    sequential dependence between iterations, so no thread races ahead into the next one.
 
 
     \section{Optimisations} \label{sec:optimisations}
 
-    In order to optimise the program we parallelized all the blocks except initialLR. The function cannot be parallelized because it incorporates a random function that must be called sequentially.
-    If the function was parallelized , the results would be wrong due to data races among the threads.
-    Regarding the other blocks:
+    Every block except \texttt{initialLR} is parallelised. The interesting work was in
+    \emph{how} the gradient update is parallelised, because that block carries the only
+    real data hazard.
 
-    \subsection{ReadInput}\label{subsec:readinput2}
-    The first parallelization zone in the program happens in the read input function.
-    This function, as the name describes, will read the lines of the file and save it on variables.
-    First, we save the lines through a 'for' to a vector since it is not possible to parallelise.
-    Then, we read the first 4 lines to save number of Iterations, convergence coefficient, number of features and others.
-    Lastly, we have to read the rest of the lines depending in each file.
-    In order to do that, we parallelized the for cycle by using the schedule 'guided' to optimize the parallelization.
-    In guided schedule, is assigned to each thread a block of decreasing size.
-    The size of each block is proportional to the number of unassigned iterations divided by the number of threads, decreasing to chunk.
+    \subsection{Lock-free update via array reduction}\label{subsec:reduction}
+    The update is the hot block. Two non-zeros that share a user write the same row of
+    $L$, and two that share an item write the same column of $R$, so a naive parallel
+    loop has write conflicts. Guarding each write with \texttt{atomic} would serialise
+    exactly the inner loop that should run in parallel. Instead we use an array
+    reduction, \texttt{reduction(+ : L[:lSize], R[:rSize])}: every thread accumulates
+    into a private, zero-initialised copy of $L$ and $R$ --- the increments read only the
+    snapshots \texttt{StoreL}/\texttt{StoreR}, never the live factors --- and the runtime
+    sums the private copies into $L$ and $R$ at the barrier. No atomics, no lock
+    contention. Replacing the atomics with the reduction was the change that moved the
+    program from \emph{barely matching} serial to a real speedup.
 
-    \subsection{UpdateLR}\label{subsec:updatelr2}
-    The block updateLR is also parallelized.
-    All the function updateLR is parallelized because we had three mini fuctions inside updateLR and these are composed by cycles for's.
-    Obviously all these are parallelized.
-    The first mini function has a "pragma omp for collapse(2)", which means that two cycles for are transformed into one and this one is parallelized with a schedule guided.
-    The second mini fuction has a cycle for parallelized with schedule guided.
-    The last one also has a "pragma omp for collapse(2)" for the same reason.
-    We decided to use guided schedule on the first and third mini function because it exists some iteration that are bigger than others.
-    Due to these iterations guided schedule improve the parallelization.
+    \subsection{Conflict-free element loops}\label{subsec:conflictfree}
+    Where the output partition is naturally disjoint, no synchronisation is needed at all.
+    In \texttt{computeB} each thread owns a block of rows $i$, so no two threads ever
+    write the same $B[i][j]$; the loop also keeps the cache-friendly $i,k,j$ order so each
+    thread streams $R$ and $B$ with unit stride. The non-zero mask and the per-user
+    arg-max in \texttt{filterFinalMatrix} are partitioned by row in the same way.
 
-    \subsection{FilterFinalMatrix}\label{subsec:filterfinalmatrix}
-    The other zone that is parallelized is the 'filterFinalMatrix' function.
-    This function consists in 'computeB' function and in three for cycles which are parallelized.
-    As the name describes the computeB function will calculate B for each matrix position.
-    Inside this function exists a triple loop which we parallelized with a '#pragma omp for collapse(3)'. The three for cycles that belong to the 'filterFinalMatrix' function are individually parallelized.
-    Two of them are settled with schedule guided.
-    The last one is settled with ordered.
-    It needs this setting because the cycle for is printing on the console and it needs to print in the correct order.
+    \subsection{Scheduling and output}\label{subsec:scheduling}
+    The element loops use \texttt{schedule(static)} (uniform work per row); the per-user
+    arg-max uses \texttt{schedule(guided)}, since rows with more items cost more. The
+    single \texttt{std::cout} loop runs after the region closes, so output stays ordered
+    without an \texttt{ordered} clause.
+
+    \section{Implications for Parallel and Distributed Computing}\label{sec:pdc}
+
+    \subsection{Persistent threads beat repeated fork/join}\label{subsec:fork}
+    Hoisting the parallel region trades many team set-ups for one. With short iterations
+    the fork/join cost is not negligible relative to the work, so paying it once ---
+    enabled by orphaned worksharing --- removes overhead that no amount of in-loop tuning
+    could. The lesson generalises: keep the parallel team alive across the outer loop and
+    share work inside it.
+
+    \subsection{Resolving write conflicts: a memory-for-contention trade}\label{subsec:trade}
+    The same hazard --- many updates landing on the same $L$/$R$ entries --- admits two
+    answers: atomics (serialise the conflicting writes) or a reduction (give each thread a
+    private copy and combine once). The reduction costs extra memory, one copy of the
+    factors per thread, but removes \emph{all} contention from the inner loop. On this
+    kernel that trade is decisively worth it, and it is the same trade that reappears in
+    the distributed version as a gradient \texttt{Allreduce}.
+
+    \subsection{Bandwidth, not cores, sets the ceiling}\label{subsec:bandwidth}
+    The kernel streams $L$ and $R$ far more than it computes, so it is memory-bound. The
+    speedup therefore flattens once a socket's memory bandwidth saturates --- around four
+    threads on our machine --- rather than at the core count. The serial $i,k,j$ cache
+    order is what raises that ceiling; an algorithm that is cache-inefficient in serial
+    cannot be rescued by threads.
+
+    \subsection{Synchronise exactly as much as the dependencies require}\label{subsec:sync}
+    \texttt{nowait} on the independent snapshot copies, a barrier only at the true
+    snapshot-then-read dependence, and the implicit end-of-loop barrier to order the
+    sequential iterations: over-synchronising wastes the threads that finish early, while
+    under-synchronising is a data race. Reading the dependency structure off the serial
+    code is what tells you where each barrier must --- and must not --- go.
+
+    \subsection{Amdahl in practice}\label{subsec:amdahl}
+    Sequential \texttt{initialLR} and the reduction's combine step (whose cost grows with
+    the thread count) are the non-parallel fractions, so by Amdahl's law the speedup is
+    sublinear and eventually plateaus --- consistent with the measurements below.
 
     \section{Evaluation}\label{sec:evaluation}
 
     \begin{figure}[h]
         \caption{Speedup}
-        \includegraphics[width=1\linewidth]{speedup.png}
+%        \includegraphics[width=1\linewidth]{speedup.png}
         \label{fig:Ng2}
     \end{figure}
 
@@ -181,7 +213,7 @@
 
     \begin{figure}[h]
         \caption{Total Execution Time}
-        \includegraphics[width=1\linewidth]{time.png}
+%        \includegraphics[width=1\linewidth]{time.png}
         \label{fig:Ng1}
     \end{figure}
 

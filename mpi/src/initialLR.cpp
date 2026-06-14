@@ -2,8 +2,8 @@
 
 #define RAND01 ((double)random() / (double)RAND_MAX)
 
-void initialLR(double *&L, double *&R,
-               int &numberOfUsers, int &numberOfItems, int &numberOfFeatures) {
+void initialLR(double *L, double *R,
+               int numberOfUsers, int numberOfItems, int numberOfFeatures) {
     srandom(1);
     for (int i = 0; i < numberOfUsers; i++)
         for (int k = 0; k < numberOfFeatures; k++)

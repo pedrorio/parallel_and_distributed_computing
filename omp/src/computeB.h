@@ -1,6 +1,6 @@
-#ifndef SERIAL_COMPUTEB_H
-#define SERIAL_COMPUTEB_H
+#ifndef OMP_COMPUTEB_H
+#define OMP_COMPUTEB_H
 
 void computeB(double *&L, double *&R, int &numberOfUsers, int &numberOfItems, int &numberOfFeatures, double *&B);
 
-#endif //SERIAL_COMPUTEB_H
+#endif //OMP_COMPUTEB_H

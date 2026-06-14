@@ -1,4 +1,10 @@
 #include <gtest/gtest.h>
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+
 #include "matFact.h"
 
 TEST(matFact, smallInstance) {

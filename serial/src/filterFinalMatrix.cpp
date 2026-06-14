@@ -21,7 +21,7 @@ void filterFinalMatrix(double *&A, double *&B,
 
     for (int i = 0; i < numberOfUsers; i++) {
         double max = 0;
-        int maxPosition;
+        int maxPosition = 0;
         for (int j = 0; j < numberOfItems; j++) {
             if (B[i * numberOfItems + j] > max) {
                 max = B[i * numberOfItems + j];
@@ -41,4 +41,4 @@ void filterFinalMatrix(double *&A, double *&B,
     for (int i = 0; i < numberOfUsers; i++) {
         std::cout << BV[i] << std::endl;
     }
-};
+}

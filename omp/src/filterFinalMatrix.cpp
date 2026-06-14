@@ -1,7 +1,6 @@
 #include <iostream>
 #include "filterFinalMatrix.h"
 #include "computeB.h"
-#include "printMatrix.h"
 
 void filterFinalMatrix(double *&A, double *&B,
                        int *&nonZeroUserIndexes,
@@ -13,39 +12,30 @@ void filterFinalMatrix(double *&A, double *&B,
                        int &numberOfNonZeroElements,
                        int *&BV) {
 
-    int i, j, l;
-
-    #pragma omp parallel shared(numberOfUsers, numberOfItems, numberOfFeatures, A, B, L, R, numberOfNonZeroElements, nonZeroUserIndexes, nonZeroItemIndexes, BV, std::cout)  default(none) private(i, l, j)
+    #pragma omp parallel shared(numberOfUsers, numberOfItems, numberOfFeatures, A, B, L, R, numberOfNonZeroElements, nonZeroUserIndexes, nonZeroItemIndexes, BV) default(none)
     {
         computeB(L, R, numberOfUsers, numberOfItems, numberOfFeatures, B);
 
-        #pragma omp for private(l) schedule(static)
+        #pragma omp for schedule(static)
         for (int l = 0; l < numberOfNonZeroElements; l++) {
             B[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = 0;
         }
 
-        #pragma omp for private(i, j) schedule(guided)
+        #pragma omp for schedule(guided)
         for (int i = 0; i < numberOfUsers; i++) {
             double max = 0;
-            int maxPosition;
+            int maxPosition = 0;
             for (int j = 0; j < numberOfItems; j++) {
                 if (B[i * numberOfItems + j] > max) {
                     max = B[i * numberOfItems + j];
                     maxPosition = j;
-                } else {
-                    continue;
                 }
             }
             BV[i] = maxPosition;
         }
-    };
-
-//    printMatrix("A", A, numberOfUsers, numberOfItems);
-//    printMatrix("L", L, numberOfUsers, numberOfFeatures);
-//    printMatrix("R", R, numberOfFeatures, numberOfUsers);
-//    printMatrix("B", B, numberOfUsers, numberOfItems);
+    }
 
     for (int i = 0; i < numberOfUsers; i++) {
         std::cout << BV[i] << std::endl;
     }
-};
+}

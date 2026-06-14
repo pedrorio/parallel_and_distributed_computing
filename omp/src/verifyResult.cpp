@@ -23,4 +23,4 @@ int verifyResult(std::string &fileName, int *&BV) {
         }
     }
     return numberOfFalses;
-};
+}

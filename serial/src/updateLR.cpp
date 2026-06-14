@@ -1,7 +1,9 @@
 #include "updateLR.h"
 
+#include <algorithm>
+
 void updateLR(double *&A,
-              double *&prediction, double *&delta,
+              double *&delta,
               int *&nonZeroUserIndexes,
               int *&nonZeroItemIndexes,
               double *&L, double *&R,
@@ -10,24 +12,16 @@ void updateLR(double *&A,
               int &numberOfNonZeroElements,
               double &convergenceCoefficient) {
 
-    int i, l, k;
-
-    for (int i = 0; i < numberOfFeatures; i++) {
-        for (int k = 0; k < numberOfUsers; k++) {
-            StoreL[k * numberOfFeatures + i] = L[k * numberOfFeatures + i];
-        }
-        for (int k = 0; k < numberOfItems; k++) {
-            StoreR[i * numberOfItems + k] = R[i * numberOfItems + k];
-        }
-    }
+    // Snapshot L and R; every read below uses these pre-iteration values.
+    std::copy(L, L + (size_t) numberOfUsers * numberOfFeatures, StoreL);
+    std::copy(R, R + (size_t) numberOfFeatures * numberOfItems, StoreR);
 
     for (int l = 0; l < numberOfNonZeroElements; l++) {
-        prediction[l] = 0;
-        delta[l] = 0;
+        double prediction = 0;
         for (int k = 0; k < numberOfFeatures; k++) {
-            prediction[l] += L[nonZeroUserIndexes[l] * numberOfFeatures + k] * R[k * numberOfItems + nonZeroItemIndexes[l]];
+            prediction += L[nonZeroUserIndexes[l] * numberOfFeatures + k] * R[k * numberOfItems + nonZeroItemIndexes[l]];
         }
-        delta[l] = A[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] - prediction[l];
+        delta[l] = A[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] - prediction;
     }
 
     for (int l = 0; l < numberOfNonZeroElements; l++) {
@@ -36,4 +30,4 @@ void updateLR(double *&A,
             R[k * numberOfItems + nonZeroItemIndexes[l]] += convergenceCoefficient * (2 * delta[l] * StoreL[nonZeroUserIndexes[l] * numberOfFeatures + k]);
         }
     }
-};
+}

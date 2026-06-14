@@ -1,126 +1,106 @@
 #include "mpi.h"
 
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <string>
+
 #include "src/readInput.h"
 #include "src/initialLR.h"
 #include "src/updateLR.h"
 #include "src/filterFinalMatrix.h"
 #include "src/verifyResult.h"
-#include "src/info.h"
-#include "src/Array.h"
-#include "src/Grid.h"
 
-#define FIRST_ELEMENT(id, p, n) ((id)*(n)/(p))
-#define LAST_ELEMENT(id, p, n) (FIRST_ELEMENT((id)+1,p,n)-1)
-#define BLOCK_SIZE(id, p, n) (LAST_ELEMENT(id,p,n)-FIRST_ELEMENT(id,p,n)+1)
 #define ROOT 0
 
 int main(int argc, char *argv[]) {
 
-    Array *localA = nullptr;
-
-    int *localNonZeroUserIndexes, *localNonZeroItemIndexes = nullptr;
-    double *localNonZeroElements = nullptr;
-
-    Array *localL, *localStoreL = nullptr;
-    Array *localR, *localStoreR = nullptr;
-
-    double read_input, initial_lr, update_lr, total_time;
-
     MPI_Init(&argc, &argv);
 
-    CONFIG_INFO configInfo;
-    Grid gridInfo;
+    int processId, numberOfProcesses;
+    MPI_Comm_rank(MPI_COMM_WORLD, &processId);
+    MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcesses);
 
-    double division_time = MPI_Wtime();
+    if (argc < 2) {
+        if (processId == ROOT) {
+            std::cerr << "usage: matFact-mpi <instance.in>" << std::endl;
+        }
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
 
     std::string inputFileName = argv[1];
 
+    double start_time = MPI_Wtime();
 
-    readInput(inputFileName,
-              localA,
-              localNonZeroUserIndexes, localNonZeroItemIndexes,
-              localNonZeroElements,
-              configInfo, gridInfo);
+    // Empty placeholders so readInput can delete[] them before allocating.
+    double *A = new double[0];
+    int *nonZeroUserIndexes = new int[0];
+    int *nonZeroItemIndexes = new int[0];
+    double *nonZeroElements = new double[0];
 
-//    MPI_Barrier(MPI_COMM_WORLD);
+    int numberOfIterations, numberOfFeatures, numberOfUsers, numberOfItems, numberOfNonZeroElements;
+    double convergenceCoefficient;
 
-    read_input = MPI_Wtime();
+    readInput(inputFileName, A, nonZeroUserIndexes, nonZeroItemIndexes, nonZeroElements,
+              numberOfIterations, numberOfFeatures, convergenceCoefficient,
+              numberOfUsers, numberOfItems, numberOfNonZeroElements,
+              processId, numberOfProcesses);
 
-    L = new Array(configInfo.numberOfUsers, configInfo.numberOfFeatures);
-    R = new Array(configInfo.numberOfFeatures, configInfo.numberOfItems);
+    double read_input = MPI_Wtime();
 
-    initialLR(reinterpret_cast<Array &>(L), reinterpret_cast<Array &>(localL), reinterpret_cast<Array &>(R),
-              reinterpret_cast<Array &>(localR), configInfo);
+    // initialLR is deterministic (srandom(1)), so L and R start out identical on
+    // every process without any communication.
+    double *L = new double[(size_t) numberOfUsers * numberOfFeatures];
+    double *R = new double[(size_t) numberOfFeatures * numberOfItems];
 
-    initial_lr = MPI_Wtime();
+    initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
-    std::cout << "after initialLR process " << processId << std::endl;
-    fflush(stdout);
+    double initial_lr = MPI_Wtime();
 
-    for (int iteration = 0; iteration < configInfo.numberOfIterations; iteration++) {
+    double *StoreL = new double[(size_t) numberOfUsers * numberOfFeatures];
+    double *StoreR = new double[(size_t) numberOfFeatures * numberOfItems];
+    double *dL = new double[(size_t) numberOfUsers * numberOfFeatures];
+    double *dR = new double[(size_t) numberOfFeatures * numberOfItems];
 
-        StoreL = new Array(configInfo.numberOfUsers, configInfo.numberOfFeatures);
-        for (int k = 0; k < configInfo.numberOfUsers; k++) {
-            for (int i = 0; i < configInfo.numberOfFeatures; i++) {
-                &StoreL(k, i) = L(k, i);
-            }
-        }
-
-        StoreR = new Array(configInfo.numberOfFeatures, configInfo.numberOfItems);
-        for (int k = 0; k < configInfo.numberOfFeatures; k++) {
-            for (int i = 0; i < configInfo.numberOfItems; i++) {
-                StoreR(k, i) = R(k, i);
-            }
-        }
-
-        updateLR(localA,
-                 localNonZeroUserIndexes,
-                 localNonZeroItemIndexes,
-                 StoreL, StoreR,
-                 configInfo, gridInfo);
-
-        delete[] StoreL;
-        delete[] StoreR;
+    for (int iteration = 0; iteration < numberOfIterations; iteration++) {
+        updateLR(A, nonZeroUserIndexes, nonZeroItemIndexes,
+                 L, R, StoreL, StoreR, dL, dR,
+                 numberOfUsers, numberOfItems, numberOfFeatures,
+                 numberOfNonZeroElements, convergenceCoefficient,
+                 processId, numberOfProcesses);
     }
-//
-//    update_lr = MPI_Wtime();
-//
-//    auto *B = new double[numberOfUsers * numberOfItems];
-//    for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
-//        B[j] = 0;
-//    }
-//
-//    auto *BV = new int[numberOfUsers];
-//    for (int k = 0; k < numberOfUsers; k++) {
-//        BV[k] = 0;
-//    }
-//
-//    if (processId == ROOT) {
-//        filterFinalMatrix(A, B,
-//                          nonZeroUserIndexes,
-//                          nonZeroItemIndexes,
-//                          nonZeroElements,
-//                          L, R,
-//                          numberOfUsers, numberOfItems, numberOfFeatures,
-//                          numberOfNonZeroElements,
-//                          BV);
-//    }
 
-    total_time = MPI_Wtime();
+    double update_lr = MPI_Wtime();
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
+    delete[] StoreL;
+    delete[] StoreR;
+    delete[] dL;
+    delete[] dR;
 
-    if (std::getenv("LOG_RESULTS")) {
-        std::ofstream logResults("../helpers/comparison.mpi.csv", std::ios::app);
+    // L and R are identical on every process; the root builds the final
+    // recommendation matrix and prints one recommended item per user.
+    int *BV = new int[numberOfUsers];
+    double *B = nullptr;
+    if (processId == ROOT) {
+        B = new double[(size_t) numberOfUsers * numberOfItems];
+        for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
+            B[j] = 0.0;
+        }
 
+        filterFinalMatrix(A, B, nonZeroUserIndexes, nonZeroItemIndexes, nonZeroElements,
+                          L, R, numberOfUsers, numberOfItems, numberOfFeatures,
+                          numberOfNonZeroElements, BV);
+    }
+
+    double total_time = MPI_Wtime();
+
+    if (processId == ROOT && std::getenv("LOG_RESULTS")) {
+        std::ofstream logResults("../compare/data/comparison.mpi.csv", std::ios::app);
         logResults << inputFileName << ", ";
         logResults << numberOfProcesses << ", ";
-
         std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-//        int numberOfErrors = verifyResult(outputFileName, BV);
-//        logResults << numberOfErrors << ", ";
-
+        int numberOfErrors = verifyResult(outputFileName, BV);
+        logResults << numberOfErrors << ", ";
         logResults << numberOfUsers << ", ";
         logResults << numberOfItems << ", ";
         logResults << numberOfFeatures << ", ";
@@ -133,20 +113,17 @@ int main(int argc, char *argv[]) {
         logResults << double(total_time - start_time);
         logResults << std::endl;
         logResults.close();
-
-//        std::cout << double(total_time - start_time) << std::endl;
     }
-//    std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-//    int numberOfErrors = verifyResult(outputFileName, BV);
-//
-//    std::cout << numberOfErrors << std::endl;
 
     delete[] A;
-//    delete[] B;
-//    delete[] BV;
-//
-//    delete[] L;
-//    delete[] R;
+    delete[] nonZeroUserIndexes;
+    delete[] nonZeroItemIndexes;
+    delete[] nonZeroElements;
+    delete[] L;
+    delete[] R;
+    delete[] BV;
+    delete[] B;
 
+    MPI_Finalize();
     return 0;
 }

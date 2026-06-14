@@ -7,10 +7,10 @@
 #include "printMatrix.h"
 
 void matFact(std::string inputFileName) {
-    time_t start_time;
-    time_t read_input;
-    time_t initial_lr;
-    time_t total_time;
+    double start_time;
+    double read_input;
+    double initial_lr;
+    double total_time;
 
     start_time = omp_get_wtime();
 
@@ -19,7 +19,7 @@ void matFact(std::string inputFileName) {
     auto *nonZeroItemIndexes = new int[0];
     auto *nonZeroElements = new double[0];
 
-    int k, numberOfIterations, numberOfFeatures, numberOfUsers, numberOfItems, numberOfNonZeroElements;
+    int numberOfIterations, numberOfFeatures, numberOfUsers, numberOfItems, numberOfNonZeroElements;
     double convergenceCoefficient;
 
 
@@ -32,8 +32,8 @@ void matFact(std::string inputFileName) {
 
     read_input = omp_get_wtime();
 
-    auto *L = new double[numberOfUsers * numberOfFeatures];
-    auto *R = new double[numberOfFeatures * numberOfItems];
+    auto *L = new double[(size_t) numberOfUsers * numberOfFeatures];
+    auto *R = new double[(size_t) numberOfFeatures * numberOfItems];
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
@@ -42,14 +42,13 @@ void matFact(std::string inputFileName) {
 //    printMatrix("L", L, numberOfUsers, numberOfFeatures);
 //    printMatrix("R", R, numberOfFeatures, numberOfItems);
 
-    auto *StoreL = new double[numberOfUsers * numberOfFeatures];
-    auto *StoreR = new double[numberOfFeatures * numberOfItems];
-    auto *prediction = new double[numberOfNonZeroElements];
+    auto *StoreL = new double[(size_t) numberOfUsers * numberOfFeatures];
+    auto *StoreR = new double[(size_t) numberOfFeatures * numberOfItems];
     auto *delta = new double[numberOfNonZeroElements];
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
         updateLR(A,
-                 prediction, delta,
+                 delta,
                  nonZeroUserIndexes,
                  nonZeroItemIndexes,
                  L, R, StoreL, StoreR,
@@ -58,14 +57,13 @@ void matFact(std::string inputFileName) {
                  convergenceCoefficient);
     }
 
-    time_t final_filtering = omp_get_wtime();
+    double final_filtering = omp_get_wtime();
 
-    delete[] prediction;
     delete[] delta;
     delete[] StoreL;
     delete[] StoreR;
 
-    auto *B = new double[numberOfUsers * numberOfItems];
+    auto *B = new double[(size_t) numberOfUsers * numberOfItems];
     auto *BV = new int[numberOfUsers];
 
     filterFinalMatrix(A, B, nonZeroUserIndexes,

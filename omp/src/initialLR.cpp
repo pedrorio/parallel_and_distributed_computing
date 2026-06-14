@@ -10,4 +10,4 @@ void initialLR(double *&L, double *&R, int &numberOfUsers, int &numberOfItems, i
     for (int k = 0; k < numberOfFeatures * numberOfItems; k++)
         R[k] = RAND01 / (double) numberOfFeatures;
 
-};
+}

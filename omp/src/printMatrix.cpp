@@ -9,4 +9,4 @@ void printMatrix(const std::string name, double *&matrix, int &numberOfRows, int
         std::cout << std::endl;
     }
     std::cout << std::endl;
-};
+}
