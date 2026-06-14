@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 
-void initialLR(double *&L, double *&R,
-               int &numberOfUsers, int &numberOfItems, int &numberOfFeatures);
+void initialLR(double *L, double *R,
+               int numberOfUsers, int numberOfItems, int numberOfFeatures);
 
 #endif //MPI_INITIALLR_H

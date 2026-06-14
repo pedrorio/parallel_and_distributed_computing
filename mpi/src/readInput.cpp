@@ -50,9 +50,11 @@ void readInput(std::string &inputFileName, double *&A,
             numberOfUsers = std::stoi(dims[0]);
             numberOfItems = std::stoi(dims[1]);
             numberOfNonZeroElements = std::stoi(dims[2]);
+            if (numberOfUsers <= 0 || numberOfItems <= 0 || numberOfNonZeroElements < 0) {
+                throw std::runtime_error("dimensions must be positive");
+            }
 
-            if (numberOfNonZeroElements < 0 ||
-                (int) fileCopy.size() < 4 + numberOfNonZeroElements) {
+            if ((int) fileCopy.size() < 4 + numberOfNonZeroElements) {
                 throw std::runtime_error("not enough non-zero lines");
             }
 
@@ -63,8 +65,14 @@ void readInput(std::string &inputFileName, double *&A,
                 if (results.size() < 3) {
                     throw std::runtime_error("bad non-zero line");
                 }
-                rootUser.push_back(std::stoi(results[0]));
-                rootItem.push_back(std::stoi(results[1]));
+                int userIndex = std::stoi(results[0]);
+                int itemIndex = std::stoi(results[1]);
+                if (userIndex < 0 || userIndex >= numberOfUsers ||
+                    itemIndex < 0 || itemIndex >= numberOfItems) {
+                    throw std::runtime_error("non-zero index out of range");
+                }
+                rootUser.push_back(userIndex);
+                rootItem.push_back(itemIndex);
                 rootElem.push_back(std::stod(results[2]));
             }
         } catch (const std::exception &) {
@@ -109,11 +117,11 @@ void readInput(std::string &inputFileName, double *&A,
 
     // Every process reconstructs the full sparse matrix A locally. A and all the
     // non-zero arrays are now replicated identically on every rank.
-    A = new double[numberOfUsers * numberOfItems];
+    A = new double[(size_t) numberOfUsers * numberOfItems];
     for (int i = 0; i < numberOfUsers * numberOfItems; i++) {
         A[i] = 0.0;
     }
     for (int l = 0; l < numberOfNonZeroElements; l++) {
-        A[nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = nonZeroElements[l];
+        A[(size_t) nonZeroUserIndexes[l] * numberOfItems + nonZeroItemIndexes[l]] = nonZeroElements[l];
     }
 }

@@ -3,6 +3,6 @@
 
 #include <vector>
 
-int verifyResult(std::string &fileName, int *&BV);
+int verifyResult(std::string &fileName, int *BV);
 
 #endif //MPI_VERIFYRESULT_H

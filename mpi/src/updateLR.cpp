@@ -2,9 +2,10 @@
 
 #include "mpi.h"
 
-#define BLOCK_LOW(id, p, n) ((id) * (n) / (p))
-#define BLOCK_HIGH(id, p, n) (BLOCK_LOW((id) + 1, p, n) - 1)
-#define BLOCK_SIZE(id, p, n) (BLOCK_HIGH(id, p, n) - BLOCK_LOW(id, p, n) + 1)
+// Contiguous block partition of n items across p ranks (Quinn's BLOCK_LOW/SIZE,
+// as typed inline helpers rather than macros to avoid double-evaluation pitfalls).
+static inline int blockLow(int id, int p, int n) { return id * n / p; }
+static inline int blockCount(int id, int p, int n) { return blockLow(id + 1, p, n) - blockLow(id, p, n); }
 
 void updateLR(double *A,
               int *nonZeroUserIndexes, int *nonZeroItemIndexes,
@@ -28,8 +29,8 @@ void updateLR(double *A,
 
     // This process owns one contiguous block of the non-zero list. (When there
     // are more processes than non-zeros, some blocks are empty.)
-    int startIndex = BLOCK_LOW(processId, numberOfProcesses, numberOfNonZeroElements);
-    int blockSize = BLOCK_SIZE(processId, numberOfProcesses, numberOfNonZeroElements);
+    int startIndex = blockLow(processId, numberOfProcesses, numberOfNonZeroElements);
+    int blockSize = blockCount(processId, numberOfProcesses, numberOfNonZeroElements);
 
     for (int l = startIndex; l < startIndex + blockSize; l++) {
         int u = nonZeroUserIndexes[l];

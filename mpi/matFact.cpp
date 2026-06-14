@@ -50,17 +50,17 @@ int main(int argc, char *argv[]) {
 
     // initialLR is deterministic (srandom(1)), so L and R start out identical on
     // every process without any communication.
-    double *L = new double[numberOfUsers * numberOfFeatures];
-    double *R = new double[numberOfFeatures * numberOfItems];
+    double *L = new double[(size_t) numberOfUsers * numberOfFeatures];
+    double *R = new double[(size_t) numberOfFeatures * numberOfItems];
 
     initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
 
     double initial_lr = MPI_Wtime();
 
-    double *StoreL = new double[numberOfUsers * numberOfFeatures];
-    double *StoreR = new double[numberOfFeatures * numberOfItems];
-    double *dL = new double[numberOfUsers * numberOfFeatures];
-    double *dR = new double[numberOfFeatures * numberOfItems];
+    double *StoreL = new double[(size_t) numberOfUsers * numberOfFeatures];
+    double *StoreR = new double[(size_t) numberOfFeatures * numberOfItems];
+    double *dL = new double[(size_t) numberOfUsers * numberOfFeatures];
+    double *dR = new double[(size_t) numberOfFeatures * numberOfItems];
 
     for (int iteration = 0; iteration < numberOfIterations; iteration++) {
         updateLR(A, nonZeroUserIndexes, nonZeroItemIndexes,
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
     int *BV = new int[numberOfUsers];
     double *B = nullptr;
     if (processId == ROOT) {
-        B = new double[numberOfUsers * numberOfItems];
+        B = new double[(size_t) numberOfUsers * numberOfItems];
         for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
             B[j] = 0.0;
         }
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     double total_time = MPI_Wtime();
 
     if (processId == ROOT && std::getenv("LOG_RESULTS")) {
-        std::ofstream logResults("../compare/comparison.mpi.csv", std::ios::app);
+        std::ofstream logResults("../compare/data/comparison.mpi.csv", std::ios::app);
         logResults << inputFileName << ", ";
         logResults << numberOfProcesses << ", ";
         std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
