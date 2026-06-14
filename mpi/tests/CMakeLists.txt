@@ -20,7 +20,8 @@ if(MPIEXEC_EXECUTABLE)
     execute_process(
             COMMAND "${MPIEXEC_EXECUTABLE}" --version
             OUTPUT_VARIABLE _mpi_ver ERROR_VARIABLE _mpi_ver)
-    if(_mpi_ver MATCHES "Open MPI")
+    # Open MPI 5 reports "Open MPI"; Open MPI 4 (Ubuntu) reports "OpenRTE".
+    if(_mpi_ver MATCHES "Open MPI" OR _mpi_ver MATCHES "OpenRTE")
         set(OVERSUB "--oversubscribe")
     endif()
 endif()
