@@ -9,3 +9,4 @@ add_library(${LIBRARY} STATIC ${SOURCES})
 
 find_package(OpenMP REQUIRED)
 target_link_libraries(${BINARY} PUBLIC ${LIBRARY} PRIVATE OpenMP::OpenMP_CXX)
+target_link_libraries(${LIBRARY} PUBLIC OpenMP::OpenMP_CXX)

@@ -7,10 +7,10 @@
 #include "printMatrix.h"
 
 void matFact(std::string inputFileName) {
-    time_t start_time;
-    time_t read_input;
-    time_t initial_lr;
-    time_t total_time;
+    double start_time;
+    double read_input;
+    double initial_lr;
+    double total_time;
 
     start_time = omp_get_wtime();
 
@@ -57,7 +57,7 @@ void matFact(std::string inputFileName) {
                  convergenceCoefficient);
     }
 
-    time_t final_filtering = omp_get_wtime();
+    double final_filtering = omp_get_wtime();
 
     delete[] delta;
     delete[] StoreL;
