@@ -1,0 +1,215 @@
+% Preamble
+\documentclass[twocolumn]{article}
+
+% Packages
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage[margin=1in]{geometry}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    columns=fullflexible,
+    keepspaces=true,
+    language=C++,
+    showstringspaces=false,
+    frame=single,
+    xleftmargin=0.5em,
+}
+
+\pagestyle{fancy}
+
+\fancyhead{}
+\lhead{
+    \includegraphics[scale=0.13]{images/logo.png}
+}
+\rhead{
+    Distributed and Parallel Computing \\
+    2019/2020
+    \footnotesize
+}
+
+\fancyfoot[C]{\thepage}
+
+\date{}
+
+\title{
+    \includegraphics[scale=0.2]{images/logo.png}\\
+    \vskip 0.5em
+    \Huge Distributed and Parallel Computing\\
+    \LARGE Serial Report\\
+}
+
+\author{
+    Pedro Rio\\
+    \textit{MSc Data Science and Engineering}\\
+    \textit{Instituto Superior Técnico}\\
+    \textit{97241}
+    \and
+    Sebastião Maia Serqueira\\
+    \textit{MSc Data Science and Engineering}\\
+    \textit{Instituto Superior Técnico}\\
+    \textit{97108}\\
+    \and
+    Eduardo Machado\\
+    \textit{MSc Data Science and Engineering}\\
+    \textit{Instituto Superior Técnico}\\
+    \textit{97133}
+}
+
+% Document
+\begin{document}
+    \maketitle
+
+
+    \section{Program Overview}\label{sec:program-overview}
+    The problem is a matrix-factorisation recommender: a sparse user--item matrix $A$
+    is approximated by the product of two dense factors, $A \approx L \cdot R$, where
+    $L$ is $\textit{users} \times \textit{features}$ and $R$ is
+    $\textit{features} \times \textit{items}$. The factors are fitted by gradient
+    descent over the observed (non-zero) entries, and the final dense product
+    $B = L \cdot R$ yields one recommendation per user. The serial implementation is
+    divided into four parts.
+
+    \subsection{ReadInput}\label{subsec:readinput}
+    A single pass over the instance file parses the header (iterations, convergence
+    coefficient, features, and the $\textit{users}$, $\textit{items}$,
+    $\textit{non-zeros}$ triple) and then the non-zero entries. Matrix $A$ is allocated
+    as one flat row-major buffer and the non-zero coordinates are kept in parallel index
+    arrays for the gradient loop.
+
+    \subsection{InitialLR}\label{subsec:initiallr}
+    The provided routine seeds a pseudo-random generator and fills $L$ and $R$. It is
+    inherently sequential: the values depend on the order of the random draws, so the
+    fill order is part of the specification.
+
+    \subsection{UpdateLR}\label{subsec:updatelr}
+    For each non-zero $(i,j)$ a predicted score is the inner product of row $i$ of $L$
+    and column $j$ of $R$; the residual $\delta$ is the difference between the observed
+    value and the prediction. Each factor is then nudged along the gradient of the
+    squared residual, scaled by the convergence coefficient. The step uses a
+    \emph{snapshot} of $L$ and $R$ taken at the start of the iteration, and the whole
+    routine is repeated for the requested number of iterations.
+
+    \subsection{FilterFinalMatrix}\label{subsec:filterfinalmatrix}
+    The dense product $B = L \cdot R$ is formed, the already-known non-zero positions are
+    masked out, and for each row the column of maximum value is selected and streamed to
+    standard output as that user's recommendation.
+
+
+    \section{Implementation Highlights}\label{sec:highlights}
+    Although the program is single-threaded, several decisions shape both its absolute
+    speed and how cleanly it later parallelises.
+
+    \subsection{Cache-aware $B = L \cdot R$}\label{subsec:cache}
+    The dense product dominates the final stage. With row-major storage, the natural
+    $i,j,k$ loop nest reads $R[k][j]$ down a column --- stride $\textit{items}$ --- on
+    every step of the innermost loop, thrashing the cache. We instead use the $i,k,j$
+    order: the scalar $L[i][k]$ is loop-invariant in $j$ and is hoisted, and the inner
+    loop sweeps $B[i][j]$ and $R[k][j]$ \emph{together with unit stride}.
+
+    \begin{lstlisting}
+for (i = 0; i < users; i++) {
+  for (j = 0; j < items; j++)
+    B[i*items + j] = 0;
+  for (k = 0; k < features; k++) {
+    double lik = L[i*features + k];
+    for (j = 0; j < items; j++)
+      B[i*items + j] += lik * R[k*items + j];
+  }
+}
+    \end{lstlisting}
+
+    Both operands of the hot loop are now contiguous, which keeps the data in cache and
+    lets the compiler vectorise the accumulation (SIMD). The arithmetic is identical to
+    the textbook order; only the access pattern changes.
+
+    \subsection{Jacobi snapshot in UpdateLR}\label{subsec:snapshot}
+    Each iteration first copies $L$ and $R$ into \texttt{StoreL}/\texttt{StoreR}; every
+    update then \emph{reads the snapshot and writes the live factors}. This makes the
+    iteration a Jacobi step (all updates see the same starting point) rather than a
+    Gauss--Seidel one, so the result does not depend on the order in which non-zeros are
+    visited. Index arithmetic into the flat buffers is widened to \texttt{size\_t} to
+    avoid 32-bit overflow on large instances.
+
+    \subsection{Robust input handling}\label{subsec:robust}
+    \texttt{readInput} validates as it parses: the file must open, the header must be
+    complete, the dimensions must be positive, every non-zero index must fall inside
+    $[0, \textit{users}) \times [0, \textit{items})$, and the number of non-zero lines
+    must match the declared count. Any violation fails fast through a single error path
+    instead of silently indexing out of bounds. Valid instances are unaffected;
+    malformed ones stop with a diagnostic rather than corrupting memory.
+
+    \subsection{Flat row-major layout}\label{subsec:layout}
+    Every matrix is a single contiguous array addressed as
+    \texttt{M[row*width + col]}. This minimises allocations and pointer chasing, gives
+    the predictable stride patterns the cache optimisation relies on, and --- as
+    Section~\ref{sec:pdc} notes --- makes contiguous sub-blocks trivial to ship between
+    processes later.
+
+
+    \section{Implications for Parallel and Distributed Computing}\label{sec:pdc}
+    The serial version is not merely a first draft to be discarded; the choices above are
+    what make the parallel versions correct, fast, and tractable.
+
+    \subsection{A correctness oracle}\label{subsec:oracle}
+    Because \texttt{initialLR} is deterministic, the serial program produces a fixed,
+    reproducible set of recommendations. That output \emph{defines} correctness: the
+    OpenMP and MPI versions are validated by matching it bit-for-bit across every thread
+    count, process count, and grid shape. Without a deterministic serial reference there
+    is no cheap oracle, and floating-point reordering in the parallel code could not be
+    distinguished from genuine bugs.
+
+    \subsection{Dependencies dictate the strategy}\label{subsec:deps}
+    The snapshot exposes the parallelism precisely. Within an iteration every
+    residual is computed from read-only snapshot data, so the non-zeros are mutually
+    independent --- yet two non-zeros sharing a user touch the same row of $L$, and two
+    sharing an item touch the same column of $R$. Those write conflicts are exactly the
+    hazard that forces a per-thread reduction in OpenMP and an \texttt{Allreduce} of the
+    gradient in MPI. Reading the serial loop tells you both \emph{where} the parallelism
+    is and \emph{which} writes must be coordinated.
+
+    \subsection{Locality is the shared lever}\label{subsec:locality}
+    The kernel is memory-bound: it streams $L$ and $R$ far more than it computes. The
+    $i,k,j$ optimisation therefore does double duty --- it speeds the serial run, and
+    because the parallel versions are bandwidth-bound, the serial access pattern sets the
+    \emph{ceiling} they can reach. It also explains why added threads stop helping once a
+    socket's memory bandwidth saturates, rather than at the core count. The practical
+    rule: make the serial loop cache-friendly first, then parallelise.
+
+    \subsection{An honest speedup baseline}\label{subsec:baseline}
+    Speedup is reported against the serial time, so an un-optimised baseline inflates the
+    numbers. Tightening the serial kernel first means the parallel speedups measure real
+    work, not a strawman --- and it is why a one-thread OpenMP run sits near $1.0$
+    (parallel overhead against a tight serial), not above it.
+
+    \subsection{The irreducible serial fraction}\label{subsec:amdahl}
+    \texttt{initialLR} cannot be parallelised: the random draws must occur in order, or
+    the factors --- and thus the output --- change. By Amdahl's law this sequential
+    fraction bounds the achievable speedup; identifying it in the serial program fixes
+    the parallel ceiling before a single thread is spawned.
+
+    \subsection{Layout enables decomposition}\label{subsec:decomp}
+    Because the factors are contiguous and row-major, a block of user-rows or item-columns
+    is a contiguous span of memory. That is what lets the MPI versions distribute $L$ and
+    $R$ with simple \texttt{Scatterv}/\texttt{Bcast} calls and lets the 2D-grid variant
+    own clean sub-blocks per process. A serial data-layout decision quietly determines how
+    efficient the distributed partitioning can be.
+
+    \subsection{Robust I/O becomes collective safety}\label{subsec:collective}
+    Fail-fast validation matters more once there are many processes: if one rank reads a
+    malformed file and aborts while the others wait in a collective, the job deadlocks.
+    The serial habit of validating on read and stopping cleanly generalises directly to
+    the MPI pattern of validating on the root, broadcasting the status, and aborting
+    together --- defensive serial code is what makes collective error handling safe.
+
+\end{document}
