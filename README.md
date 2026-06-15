@@ -1,3 +1,3 @@
 - [x] Serial
 - [x] OpenMP
-- [ ] MPI
+- [x] MPI
