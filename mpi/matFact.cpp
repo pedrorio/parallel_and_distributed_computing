@@ -1,128 +1,100 @@
-#include "mpi.h"
+// Distributed matrix factorisation on a 2D process grid (driver).
+//
+// Ranks form a Pr x Pc Cartesian mesh. L is partitioned by user-rows across the grid
+// rows and R by item-columns across the grid columns; a non-zero (u,i) is owned by
+// rank (userBlock(u), itemBlock(i)), so each rank holds exactly the L-rows and R-cols
+// its non-zeros need. Per iteration dL is summed across the ROW communicator and dR
+// across the COLUMN communicator -- small reductions over sqrt(P)-sized
+// sub-communicators rather than a full WORLD reduce of the whole gradient -- so memory
+// and communication both fall with P. The recommendations match the serial output.
+//
+// Hybrid: each rank fans its local work across OpenMP threads. The parallel region is
+// hoisted around the whole iteration loop (forked once), updateLR uses orphaned
+// worksharing inside it, and MPI stays on the main thread (MPI_THREAD_FUNNELED). The
+// default is one thread per rank (pure MPI); opt into the hybrid by exporting
+// OMP_NUM_THREADS (one rank per socket, threads within). See README.md for tuning.
+//
+// The pipeline is split across modules: grid (mesh + sub-communicators),
+// readInput (parse + broadcast), distribute (route non-zeros to cells), initialLR
+// (deterministic slice init), updateLR (one gradient step), filterFinalMatrix
+// (B = L*R, argmax, gather, print).
+#include <mpi.h>
 
 #include <cstdlib>
-#include <fstream>
 #include <iostream>
-#include <string>
+#include <vector>
 
-#include "src/readInput.h"
-#include "src/initialLR.h"
-#include "src/updateLR.h"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+#include "src/cell.h"
+#include "src/config.h"
+#include "src/distribute.h"
 #include "src/filterFinalMatrix.h"
-#include "src/verifyResult.h"
+#include "src/grid.h"
+#include "src/initialLR.h"
+#include "src/readInput.h"
+#include "src/updateLR.h"
 
-#define ROOT 0
+int main(int argc, char **argv) {
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
 
-int main(int argc, char *argv[]) {
+    Grid grid = makeGrid();
 
-    MPI_Init(&argc, &argv);
-
-    int processId, numberOfProcesses;
-    MPI_Comm_rank(MPI_COMM_WORLD, &processId);
-    MPI_Comm_size(MPI_COMM_WORLD, &numberOfProcesses);
+    if (provided < MPI_THREAD_FUNNELED && grid.world == 0)
+        std::cerr << "matFact-mpi: warning: MPI lacks THREAD_FUNNELED; threads disabled is safest"
+                  << std::endl;
 
     if (argc < 2) {
-        if (processId == ROOT) {
-            std::cerr << "usage: matFact-mpi <instance.in>" << std::endl;
-        }
+        if (grid.world == 0) std::cerr << "usage: matFact-mpi <instance.in>" << std::endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
-    std::string inputFileName = argv[1];
+    Config cfg;
+    std::vector<int> gUser, gItem;
+    std::vector<double> gVal;
+    readInput(argv[1], grid, cfg, gUser, gItem, gVal);
 
-    double start_time = MPI_Wtime();
+    Cell cell = distributeNonZeros(grid, cfg, gUser, gItem, gVal);
 
-    // Empty placeholders so readInput can delete[] them before allocating.
-    double *A = new double[0];
-    int *nonZeroUserIndexes = new int[0];
-    int *nonZeroItemIndexes = new int[0];
-    double *nonZeroElements = new double[0];
+    double *L = new double[(size_t) cell.uLocal * cfg.features + 1];
+    double *R = new double[(size_t) cfg.features * cell.iLocal + 1];
+    initialLR(cfg, cell, L, R);
 
-    int numberOfIterations, numberOfFeatures, numberOfUsers, numberOfItems, numberOfNonZeroElements;
-    double convergenceCoefficient;
+    double *dL = new double[(size_t) cell.uLocal * cfg.features + 1];
+    double *dR = new double[(size_t) cfg.features * cell.iLocal + 1];
 
-    readInput(inputFileName, A, nonZeroUserIndexes, nonZeroItemIndexes, nonZeroElements,
-              numberOfIterations, numberOfFeatures, convergenceCoefficient,
-              numberOfUsers, numberOfItems, numberOfNonZeroElements,
-              processId, numberOfProcesses);
+    // Default to one thread per rank (pure MPI, the best config on a single node and
+    // never oversubscribing); opt into the hybrid by exporting OMP_NUM_THREADS. Tune
+    // ranks x threads x placement deliberately in the job script -- see README.md.
+#ifdef _OPENMP
+    if (std::getenv("OMP_NUM_THREADS") == NULL)
+        omp_set_num_threads(1);
+    int nthreads = omp_get_max_threads();
+#else
+    int nthreads = 1;
+#endif
+    if (std::getenv("MATFACT_VERBOSE") != NULL && grid.world == 0)
+        std::cerr << "matFact-mpi: grid " << grid.Pr << "x" << grid.Pc
+                  << ", " << nthreads << " thread(s)/rank" << std::endl;
 
-    double read_input = MPI_Wtime();
-
-    // initialLR is deterministic (srandom(1)), so L and R start out identical on
-    // every process without any communication.
-    double *L = new double[(size_t) numberOfUsers * numberOfFeatures];
-    double *R = new double[(size_t) numberOfFeatures * numberOfItems];
-
-    initialLR(L, R, numberOfUsers, numberOfItems, numberOfFeatures);
-
-    double initial_lr = MPI_Wtime();
-
-    double *StoreL = new double[(size_t) numberOfUsers * numberOfFeatures];
-    double *StoreR = new double[(size_t) numberOfFeatures * numberOfItems];
-    double *dL = new double[(size_t) numberOfUsers * numberOfFeatures];
-    double *dR = new double[(size_t) numberOfFeatures * numberOfItems];
-
-    for (int iteration = 0; iteration < numberOfIterations; iteration++) {
-        updateLR(A, nonZeroUserIndexes, nonZeroItemIndexes,
-                 L, R, StoreL, StoreR, dL, dR,
-                 numberOfUsers, numberOfItems, numberOfFeatures,
-                 numberOfNonZeroElements, convergenceCoefficient,
-                 processId, numberOfProcesses);
+    // fork the threads once; updateLR's orphaned worksharing binds to this region
+    #pragma omp parallel default(none) shared(grid, cfg, cell, L, R, dL, dR)
+    {
+        for (int iter = 0; iter < cfg.iterations; iter++)
+            updateLR(grid, cfg, cell, L, R, dL, dR);
     }
 
-    double update_lr = MPI_Wtime();
+    filterFinalMatrix(grid, cfg, cell, L, R);
 
-    delete[] StoreL;
-    delete[] StoreR;
-    delete[] dL;
-    delete[] dR;
-
-    // L and R are identical on every process; the root builds the final
-    // recommendation matrix and prints one recommended item per user.
-    int *BV = new int[numberOfUsers];
-    double *B = nullptr;
-    if (processId == ROOT) {
-        B = new double[(size_t) numberOfUsers * numberOfItems];
-        for (int j = 0; j < numberOfUsers * numberOfItems; j++) {
-            B[j] = 0.0;
-        }
-
-        filterFinalMatrix(A, B, nonZeroUserIndexes, nonZeroItemIndexes, nonZeroElements,
-                          L, R, numberOfUsers, numberOfItems, numberOfFeatures,
-                          numberOfNonZeroElements, BV);
-    }
-
-    double total_time = MPI_Wtime();
-
-    if (processId == ROOT && std::getenv("LOG_RESULTS")) {
-        std::ofstream logResults("../compare/data/comparison.mpi.csv", std::ios::app);
-        logResults << inputFileName << ", ";
-        logResults << numberOfProcesses << ", ";
-        std::string outputFileName = inputFileName.substr(0, inputFileName.length() - 2).append("out");
-        int numberOfErrors = verifyResult(outputFileName, BV);
-        logResults << numberOfErrors << ", ";
-        logResults << numberOfUsers << ", ";
-        logResults << numberOfItems << ", ";
-        logResults << numberOfFeatures << ", ";
-        logResults << numberOfNonZeroElements << ", ";
-        logResults << numberOfIterations << ", ";
-        logResults << double(read_input - start_time) << ", ";
-        logResults << double(initial_lr - read_input) << ", ";
-        logResults << double(update_lr - initial_lr) << ", ";
-        logResults << double(total_time - update_lr) << ", ";
-        logResults << double(total_time - start_time);
-        logResults << std::endl;
-        logResults.close();
-    }
-
-    delete[] A;
-    delete[] nonZeroUserIndexes;
-    delete[] nonZeroItemIndexes;
-    delete[] nonZeroElements;
     delete[] L;
     delete[] R;
-    delete[] BV;
-    delete[] B;
+    delete[] dL;
+    delete[] dR;
+    freeCell(cell);
+    freeGrid(grid);
 
     MPI_Finalize();
     return 0;

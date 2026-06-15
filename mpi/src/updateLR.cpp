@@ -1,61 +1,49 @@
 #include "updateLR.h"
 
-#include "mpi.h"
+#include <mpi.h>
 
-// Contiguous block partition of n items across p ranks (Quinn's BLOCK_LOW/SIZE,
-// as typed inline helpers rather than macros to avoid double-evaluation pitfalls).
-static inline int blockLow(int id, int p, int n) { return id * n / p; }
-static inline int blockCount(int id, int p, int n) { return blockLow(id + 1, p, n) - blockLow(id, p, n); }
+#include <cstddef>
 
-void updateLR(double *A,
-              int *nonZeroUserIndexes, int *nonZeroItemIndexes,
-              double *L, double *R, double *StoreL, double *StoreR,
-              double *dL, double *dR,
-              int numberOfUsers, int numberOfItems, int numberOfFeatures,
-              int numberOfNonZeroElements, double convergenceCoefficient,
-              int processId, int numberOfProcesses) {
+// Orphaned worksharing: every directive below binds to the parallel region opened in
+// matFact.cpp. All threads run this body each iteration; the omp-for constructs split
+// the per-rank work, and the implicit barriers keep the threads in lockstep.
+void updateLR(const Grid &g, const Config &cfg, const Cell &cell,
+              double *L, double *R, double *dL, double *dR) {
+    int F = cfg.features, uLocal = cell.uLocal, iLocal = cell.iLocal;
+    double alpha = cfg.convergence;
+    size_t lN = (size_t) uLocal * F, rN = (size_t) F * iLocal;
 
-    int lSize = numberOfUsers * numberOfFeatures;
-    int rSize = numberOfFeatures * numberOfItems;
+    // reset the gradient accumulators
+    #pragma omp for schedule(static) nowait
+    for (size_t x = 0; x < lN; x++) dL[x] = 0.0;
+    #pragma omp for schedule(static)
+    for (size_t x = 0; x < rN; x++) dR[x] = 0.0;
 
-    // Snapshot the current L and R (identical on every process). Every read in
-    // this iteration uses the snapshot, never a partially-updated value.
-    for (int i = 0; i < lSize; i++) StoreL[i] = L[i];
-    for (int i = 0; i < rSize; i++) StoreR[i] = R[i];
-
-    // This process's gradient contributions start at zero.
-    for (int i = 0; i < lSize; i++) dL[i] = 0.0;
-    for (int i = 0; i < rSize; i++) dR[i] = 0.0;
-
-    // This process owns one contiguous block of the non-zero list. (When there
-    // are more processes than non-zeros, some blocks are empty.)
-    int startIndex = blockLow(processId, numberOfProcesses, numberOfNonZeroElements);
-    int blockSize = blockCount(processId, numberOfProcesses, numberOfNonZeroElements);
-
-    for (int l = startIndex; l < startIndex + blockSize; l++) {
-        int u = nonZeroUserIndexes[l];
-        int i = nonZeroItemIndexes[l];
-
-        double prediction = 0.0;
-        for (int k = 0; k < numberOfFeatures; k++) {
-            prediction += StoreL[u * numberOfFeatures + k] * StoreR[k * numberOfItems + i];
-        }
-        double delta = A[u * numberOfItems + i] - prediction;
-
-        for (int k = 0; k < numberOfFeatures; k++) {
-            dL[u * numberOfFeatures + k] +=
-                    convergenceCoefficient * (2 * delta * StoreR[k * numberOfItems + i]);
-            dR[k * numberOfItems + i] +=
-                    convergenceCoefficient * (2 * delta * StoreL[u * numberOfFeatures + k]);
+    // local partial gradient: each thread builds a private dL/dR, summed at the barrier
+    #pragma omp for schedule(guided) reduction(+ : dL[:lN], dR[:rN])
+    for (int m = 0; m < cell.nnz; m++) {
+        int lu = cell.localUser[m], li = cell.localItem[m];
+        double pred = 0.0;
+        for (int k = 0; k < F; k++)
+            pred += L[(size_t) lu * F + k] * R[(size_t) k * iLocal + li];
+        double delta = cell.value[m] - pred;
+        for (int k = 0; k < F; k++) {
+            dL[(size_t) lu * F + k]      += alpha * (2 * delta * R[(size_t) k * iLocal + li]);
+            dR[(size_t) k * iLocal + li] += alpha * (2 * delta * L[(size_t) lu * F + k]);
         }
     }
 
-    // Sum every process's contributions in place: dL and dR become the global
-    // increment, identical on every rank.
-    MPI_Allreduce(MPI_IN_PLACE, dL, lSize, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, dR, rSize, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    // cross-rank reduction: only the main thread touches MPI (MPI_THREAD_FUNNELED).
+    // The reduction-for above ends with an implicit barrier, so dL/dR are complete here.
+    #pragma omp master
+    {
+        MPI_Allreduce(MPI_IN_PLACE, dL, uLocal * F, MPI_DOUBLE, MPI_SUM, g.rowComm);
+        MPI_Allreduce(MPI_IN_PLACE, dR, F * iLocal, MPI_DOUBLE, MPI_SUM, g.colComm);
+    }
+    #pragma omp barrier   // hold every thread until the reduced gradient is ready
 
-    // Apply the global increment to the snapshot.
-    for (int i = 0; i < lSize; i++) L[i] = StoreL[i] + dL[i];
-    for (int i = 0; i < rSize; i++) R[i] = StoreR[i] + dR[i];
+    #pragma omp for schedule(static) nowait
+    for (size_t x = 0; x < lN; x++) L[x] += dL[x];
+    #pragma omp for schedule(static)
+    for (size_t x = 0; x < rN; x++) R[x] += dR[x];
 }
