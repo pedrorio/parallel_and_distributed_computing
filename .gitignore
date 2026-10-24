@@ -8,6 +8,8 @@
 **/*.cbp
 **/Makefile
 **/*.cmake
+# ...but the CTest drivers are source, not generated build files
+!**/tests/run_compare.cmake
 !mpi/tests/run_compare.cmake
 **/CMakeCache.txt
 **/cmake-build-debug

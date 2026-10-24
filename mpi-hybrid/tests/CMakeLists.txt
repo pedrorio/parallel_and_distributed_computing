@@ -57,7 +57,7 @@ set(GRID_INSTANCES
 # Correctness (pure MPI): every instance reproduces its .out at np 1/2/4.
 foreach(inst ${GRID_INSTANCES})
     foreach(np 1 2 4)
-        mpi_compare_test(mpi.${inst}.np${np} ${np} ${inst})
+        mpi_compare_test(hybrid.${inst}.np${np} ${np} ${inst})
     endforeach()
 endforeach()
 
@@ -84,7 +84,7 @@ mpi_compare_test(hybrid.hybrid.empty_blocks.np16.t2 16 inst0     THREADS 2)
 # Determinism: the result must not depend on how many processes ran it.
 foreach(inst inst0 inst500-500-20-2-100 inst1000-1000-100-2-30)
     add_test(
-            NAME mpi.${inst}.deterministic.np1_vs_np4
+            NAME hybrid.${inst}.deterministic.np1_vs_np4
             COMMAND ${CMAKE_COMMAND}
                 -DMPIEXEC=${MPIEXEC_EXECUTABLE}
                 -DNPFLAG=${MPIEXEC_NUMPROC_FLAG}
