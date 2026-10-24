@@ -96,6 +96,24 @@ foreach(inst inst0 inst500-500-20-2-100 inst1000-1000-100-2-30)
                 -P ${DRIVER})
 endforeach()
 
+# Run-to-run reproducibility at a FIXED configuration: the same process and thread
+# count must produce the same output twice. This is what schedule(static) on the
+# gradient loop buys -- under schedule(guided) the per-thread reduction could sum in
+# a different order on each run, so an exact-output assertion was only ever
+# probabilistically true. Threads are pinned so the per-thread reduction is live.
+add_test(
+        NAME mpi.repeatable.np2.t4
+        COMMAND ${CMAKE_COMMAND}
+            -DMPIEXEC=${MPIEXEC_EXECUTABLE}
+            -DNPFLAG=${MPIEXEC_NUMPROC_FLAG}
+            -DNP=2
+            -DNP2=2
+            -DOVERSUB=${OVERSUB}
+            -DBIN=$<TARGET_FILE:matFact-mpi>
+            -DINPUT=${INSTANCES_DIR}/inst1000-1000-100-2-30.in
+            -P ${DRIVER})
+set_tests_properties(mpi.repeatable.np2.t4 PROPERTIES ENVIRONMENT "OMP_NUM_THREADS=4")
+
 # Robustness: bad input must make every rank abort cleanly, never deadlock.
 # WILL_FAIL expects a non-zero exit; the TIMEOUT turns a hang into a failure.
 set(MPIRUN_LAUNCH "${MPIEXEC_EXECUTABLE}")

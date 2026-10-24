@@ -31,7 +31,7 @@ void updateLR(const Grid &g, const Config &cfg, const Cell &cell,
     // only on this rank's block, so every thread in the team takes the same branch and
     // all of them still encounter the remaining worksharing regions in the same order.
     if (lN > 0 && rN > 0) {
-        #pragma omp for schedule(guided) reduction(+ : dL[:lN], dR[:rN])
+        #pragma omp for schedule(static) reduction(+ : dL[:lN], dR[:rN])
         for (int m = 0; m < cell.nnz; m++) {
             int lu = cell.localUser[m], li = cell.localItem[m];
             double pred = 0.0;
