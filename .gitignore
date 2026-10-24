@@ -1,5 +1,9 @@
 !Makefile
 
+# Build trees: ignore their contents but keep the committed .gitkeep placeholders
+**/build/*
+!**/build/.gitkeep
+
 **/.DS_Store
 **/*.cbp
 **/Makefile

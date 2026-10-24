@@ -1,0 +1,233 @@
+% Preamble
+\documentclass[twocolumn]{article}
+
+% Packages
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage[margin=1in]{geometry}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    columns=fullflexible,
+    keepspaces=true,
+    language=C++,
+    showstringspaces=false,
+    frame=single,
+    xleftmargin=0.5em,
+}
+
+\pagestyle{fancy}
+
+\fancyhead{}
+\lhead{
+    \includegraphics[scale=0.13]{images/logo.png}
+}
+\rhead{
+    Distributed and Parallel Computing \\
+    2019/2020
+    \footnotesize
+}
+
+\fancyfoot[C]{\thepage}
+
+\date{}
+
+\title{
+    \includegraphics[scale=0.2]{images/logo.png}\\
+    \vskip 0.5em
+    \Huge Distributed and Parallel Computing\\
+    \LARGE MPI Report --- 2D Grid \& Hybrid OpenMP\\
+}
+
+\author{
+    Pedro Rio\\
+    \textit{MSc Data Science and Engineering}\\
+    \textit{Instituto Superior Técnico}\\
+    \textit{97241}
+    \and
+    Sebastião Maia Serqueira\\
+    \textit{MSc Data Science and Engineering}\\
+    \textit{Instituto Superior Técnico}\\
+    \textit{97108}\\
+    \and
+    Eduardo Machado\\
+    \textit{MSc Data Science and Engineering}\\
+    \textit{Instituto Superior Técnico}\\
+    \textit{97133}
+}
+
+% Document
+\begin{document}
+    \maketitle
+
+
+    \section{Program Overview}\label{sec:program-overview}
+    The problem is a matrix-factorisation recommender: a sparse user--item matrix $A$ is
+    approximated by $A \approx L \cdot R$, with $L$ of size
+    $\textit{users} \times \textit{features}$ and $R$ of size
+    $\textit{features} \times \textit{items}$. The factors are fitted by gradient descent
+    over the observed entries, and the final dense product $B = L \cdot R$ yields one
+    recommendation per user. The four stages are \emph{ReadInput}, \emph{InitialLR},
+    \emph{UpdateLR} (repeated for the requested number of iterations), and
+    \emph{FilterFinalMatrix}.
+
+
+    \section{Why a 2D Grid}\label{sec:why-grid}
+    The simplest MPI design is \emph{replicate-all}: every process keeps full copies of
+    $L$ and $R$, splits the non-zero list into blocks, computes a partial gradient, and
+    sums it with a global \texttt{MPI\_Allreduce}. It is correct and short, but it does not
+    scale: the reduced gradient has $O(\textit{features} \cdot (\textit{users} +
+    \textit{items}))$ entries and that volume \emph{does not shrink} as processes are
+    added, while compute per process falls as $1/P$. Communication therefore dominates at
+    scale, and on \emph{wide} instances (a large $R$) it \emph{anti-scales} --- adding
+    processes makes it slower. Memory does not scale either: a single node must hold the
+    whole problem.
+
+    Both limits have the same cause --- replication --- so we distribute the factors over a
+    2D process grid.
+
+
+    \section{The 2D-Grid Version}\label{sec:grid}
+
+    \subsection{Process mesh}\label{subsec:mesh}
+    \texttt{MPI\_Dims\_create} factors $P$ into a balanced $P_r \times P_c$ grid;
+    \texttt{MPI\_Cart\_create} builds the mesh (with reorder disabled, so a rank's grid id
+    equals its world rank) and \texttt{MPI\_Cart\_sub} derives a \emph{row} and a
+    \emph{column} sub-communicator for each rank.
+
+    \subsection{Foster methodology}\label{subsec:foster}
+    \textbf{Partitioning.} $L$ is split by \emph{user-rows} across the grid rows and $R$ by
+    \emph{item-columns} across the grid columns. A non-zero $(u,i)$ is owned by rank
+    $(\textit{userBlock}(u), \textit{itemBlock}(i))$, so each rank holds exactly the
+    $L$-rows and $R$-columns its non-zeros touch --- memory per rank is
+    $O((\textit{users} \cdot \textit{features} + \textit{features} \cdot
+    \textit{items})/\sqrt{P})$.
+
+    \textbf{Communication.} Each rank computes a partial gradient from its cell's
+    non-zeros (all data local), then $dL$ is summed across the \emph{row} communicator and
+    $dR$ down the \emph{column} communicator. These are reductions of $\sqrt{P}$-smaller
+    slices over $\sqrt{P}$-sized sub-communicators, not a global reduce of the whole
+    gradient.
+
+    \textbf{Agglomeration and Mapping.} The non-zeros are agglomerated into one contiguous
+    block per grid cell and routed there once with a bucketed \texttt{MPI\_Scatterv}; one
+    cell maps to one process.
+
+    \subsection{Deterministic, communication-free init}\label{subsec:init}
+    \texttt{initialLR} is seeded with a fixed value, but a partitioned factor cannot simply
+    seek into the random stream (an $R$-column slice is strided). The trick is
+    \emph{generate-and-discard}: every rank runs the same \texttt{srandom(1)} sequence in
+    the serial fill order but stores only the values that fall in its slice. The slices
+    hold exactly the serial values, with no broadcast of the factors.
+
+    \subsection{Distributed final stage}\label{subsec:final}
+    $B = L \cdot R$, the mask of known entries, and the per-user arg-max are all computed
+    on the cells: each rank forms its $B$-block, takes a local arg-max over its item
+    columns, and the results are combined across the row with \texttt{MPI\_MAXLOC}
+    (smallest item index on ties, matching the serial scan) and gathered to the root in
+    user order. There is no serial-root tail.
+
+
+    \section{Hybrid OpenMP Layer}\label{sec:hybrid}
+    Each rank can fan its local work across OpenMP threads. A \emph{single} parallel region
+    is hoisted around the whole iteration loop (the team forks once), \texttt{updateLR}
+    uses orphaned worksharing, and the per-thread gradient conflict is resolved with an
+    array reduction --- \texttt{reduction(+ : dL[:lN], dR[:rN])} --- exactly as in the
+    shared-memory version. MPI stays on the main thread under
+    \texttt{MPI\_THREAD\_FUNNELED}: the two \texttt{Allreduce} calls run inside an
+    \texttt{omp master} block, fenced by barriers. The default is one thread per rank (pure
+    MPI); threads are explicit opt-in through \texttt{OMP\_NUM\_THREADS}, and one thread
+    reproduces the pure-MPI behaviour exactly.
+
+
+    \section{Evaluation}\label{sec:evaluation}
+    Table~\ref{tab:grid-vs-rep} compares wall-clock time (seconds, single shared-memory
+    node) of the 2D-grid version against the naive replicate-all design.
+
+    \begin{table}[!h]
+        \caption{\label{tab:grid-vs-rep}Replicate-all vs.\ 2D-grid (time, s)}
+        \centering
+        \resizebox{\linewidth}{!}{
+            \begin{tabular}[t]{llrrrr}
+                \toprule
+                instance & design & 1 & 2 & 4 & 8\\
+                \midrule
+                inst200 (wide) & replicate & 7.62 & 5.26 & 5.36 & 10.64\\
+                               & \textbf{grid} & 6.42 & 3.73 & 2.22 & 4.25\\
+                \addlinespace
+                inst500        & replicate & 8.50 & 4.84 & 3.28 & 8.41\\
+                               & \textbf{grid} & 8.32 & 4.40 & 2.62 & 2.64\\
+                \addlinespace
+                inst1000       & replicate & 4.15 & 2.70 & 1.89 & 3.03\\
+                               & \textbf{grid} & 4.16 & 2.32 & 1.26 & 1.42\\
+                \bottomrule
+            \end{tabular}}
+    \end{table}
+
+    The grid version is faster at essentially every process count, and the gap widens with
+    $P$: replicate-all \emph{regresses} past 4 processes (the dense \texttt{Allreduce}
+    ceiling --- $10.64$\,s on the wide instance at 8 processes), while the grid version
+    keeps scaling. The 2D reductions are why.
+
+    For the hybrid layer on a single node, the picture is more nuanced: pure MPI usually
+    wins, because shared-memory MPI is nearly free while threads add reduction and barrier
+    overhead. Threads pay off only where adding ranks would over-communicate --- on the
+    wide instance at 8 cores, $4$ ranks $\times\,2$ threads ($2.86$\,s) beats $8$ ranks
+    $\times\,1$ thread ($5.11$\,s). The hybrid is fundamentally a \emph{cluster}
+    optimisation: it keeps intra-node work off the network.
+
+
+    \section{Implications for Parallel and Distributed Computing}\label{sec:pdc}
+
+    \subsection{Distribute the data, not just the work}\label{subsec:distribute}
+    Replicate-all distributes the \emph{work} but not the \emph{data}, so it hits both a
+    memory wall and a communication ceiling. The 2D grid distributes the data: memory and
+    communication per rank both fall as $1/\sqrt{P}$. The general lesson is that a scalable
+    design must shrink each process's footprint, not only its share of the compute.
+
+    \subsection{Match the collective to the decomposition}\label{subsec:collective}
+    The win is not a faster \texttt{Allreduce}; it is a \emph{smaller} one, over a
+    \emph{smaller} communicator. Because a user's updates are spread only across its grid
+    row and an item's only down its grid column, the global reduction decomposes into
+    independent row and column reductions. Choosing the communicator to match the data
+    layout is what turns flat communication into communication that scales.
+
+    \subsection{Remove the serial tail}\label{subsec:tail}
+    Computing $B$ and the arg-max on the root would be an
+    $O(\textit{users} \cdot \textit{items} \cdot \textit{features})$ sequential tail that,
+    by Amdahl's law, caps the speedup. Distributing it over the same grid keeps the whole
+    pipeline parallel.
+
+    \subsection{The hybrid is for the memory hierarchy}\label{subsec:hierarchy}
+    One rank per node (or socket) $\times$ threads-within keeps intra-node work in shared
+    memory and shrinks the process grid, so the inter-node \texttt{Allreduce}s are cheaper.
+    On a single node, where MPI already uses shared-memory transport, the hybrid is a
+    wash; its value appears across the network, which is exactly where the cost model says
+    fewer, fatter ranks help.
+
+    \subsection{The thread count cannot be guessed at runtime}\label{subsec:threads}
+    The best \texttt{OMP\_NUM\_THREADS} depends on memory bandwidth, NUMA, the
+    interconnect, and the problem shape --- machine-specific quantities a single run cannot
+    know. (A formula $T \approx \sqrt{\textit{nnz}/(\textit{uLocal}+\textit{iLocal})}$ was
+    measured $20$--$53\,\%$ off the best in half the cases.) The program therefore defaults
+    to one thread and treats threads as explicit configuration: set the rank/thread split
+    in the job script and confirm it with a short scaling sweep.
+
+    \subsection{Reproducibility under reordering}\label{subsec:repro}
+    The partitioned reductions sum the gradient in a different order than the serial code,
+    so floating-point results differ in the last bits --- but the arg-max is robust to
+    that, so the recommendations match the serial output bit-for-bit at every process
+    count, grid shape, and thread count. A deterministic serial reference is what makes
+    this verifiable.
+
+\end{document}
