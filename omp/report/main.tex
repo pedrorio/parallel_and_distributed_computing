@@ -182,7 +182,9 @@
     \end{figure}
 
     \begin{table}[!h]
-        \caption{\label{tab:speedup}Speedup}
+        \caption{\label{tab:speedup}Speedup --- \textbf{course cluster}, original
+        submission. Not regenerable from this repository: five of these instances are not
+        in \texttt{instances/}. NaN marks instances whose serial time rounded to zero.}
         \centering
         \resizebox{\linewidth}{!}{
             \begin{tabular}[t]{lrrrr}
@@ -218,7 +220,8 @@
     \end{figure}
 
     \begin{table}[!h]
-        \caption{\label{tab:time}Total Execution Time}
+        \caption{\label{tab:time}Total execution time --- \textbf{course cluster}, original
+        submission. Not regenerable from this repository.}
         \centering
         \resizebox{\linewidth}{!}{
             \begin{tabular}[t]{lrrrr}
@@ -242,6 +245,55 @@
                 \bottomrule
             \end{tabular}}
     \end{table}
+
+    \subsection{Measured again on this machine}\label{subsec:local}
+    The tables above are the original cluster submission, kept for the large-instance
+    evidence they carry. The tables below were measured by
+    \texttt{compare/scripts/benchmark.py} on an Apple Silicon laptop (macOS 15.6, 10
+    cores, 8 of them performance cores), three repetitions with the minimum kept, every
+    run verified against the instance's \texttt{.out} file; every figure traces to a row
+    in \texttt{compare/data/comparison.omp.csv}.
+
+    The two machines are not comparable, and no figure below is divided by a figure above.
+
+    \begin{table}[!h]
+        \caption{\label{tab:time-local}Total execution time, seconds --- \textbf{this
+        laptop}, regenerable from this repository.}
+        \centering
+        \resizebox{\linewidth}{!}{
+            \begin{tabular}[t]{lrrrr}
+                \toprule
+                fileName & 1 Thread & 2 Threads & 4 Threads & 8 Threads\\
+                \midrule
+                inst1000-1000-100-2-30.in & 4.77 & 2.80 & 1.74 & 1.95\\
+                inst200-10000-50-100-300.in & 7.57 & 5.19 & 3.84 & 4.32\\
+                inst500-500-20-2-100.in & 10.39 & 6.11 & 4.32 & 4.33\\
+                \bottomrule
+            \end{tabular}}
+    \end{table}
+
+    \begin{table}[!h]
+        \caption{\label{tab:speedup-local}Speedup over the serial baseline measured in
+        the same run --- \textbf{this laptop}.}
+        \centering
+        \resizebox{\linewidth}{!}{
+            \begin{tabular}[t]{lrrrr}
+                \toprule
+                fileName & 1 Thread & 2 Threads & 4 Threads & 8 Threads\\
+                \midrule
+                inst1000-1000-100-2-30.in & 0.94 & 1.60 & 2.57 & 2.30\\
+                inst200-10000-50-100-300.in & 0.88 & 1.29 & 1.74 & 1.55\\
+                inst500-500-20-2-100.in & 0.82 & 1.39 & 1.97 & 1.97\\
+                \bottomrule
+            \end{tabular}}
+    \end{table}
+
+    A one-thread run is \emph{slower} than serial here --- $0.82$--$0.94\times$ --- the
+    fork/join and reduction overhead paid for no parallelism, which is why the one-thread
+    column is the honest baseline to quote rather than assuming $1.0$. Speedup peaks at
+    four threads and falls back at eight on every instance, on a machine with eight
+    performance cores.
+
 %
 %    \cleardoublepage~\nocite{*}
 %    \bibliography{main}

@@ -9,7 +9,9 @@ dataDir  <- normalizePath(file.path(scriptDir, "..", "data"))
 plotsDir <- file.path(scriptDir, "..", "plots")
 dir.create(plotsDir, showWarnings = FALSE, recursive = TRUE)
 
-programs <- c("serial", "omp", "mpi")
+# The project's four deliverables. "mpi" is pure MPI scaled by process count;
+# "hybrid" is MPI+OpenMP with threads on (see benchmark-config.json).
+programs <- c("serial", "omp", "mpi", "hybrid")
 
 readProgram <- function(name) {
   d <- read.csv(file.path(dataDir, sprintf("comparison.%s.csv", name)),
@@ -20,6 +22,26 @@ readProgram <- function(name) {
 
 df <- do.call(rbind, lapply(programs, readProgram))
 df$program <- factor(df$program, ordered = TRUE, levels = programs)
+
+# Put every variant on the same x axis: CORES USED, not the raw column.
+#
+# numberOfThreads means threads for serial/omp and processes for mpi/hybrid, and the
+# hybrid spends several cores per process. Plotting it raw would place a hybrid run at
+# half (or less) of the resources it actually used, so it would appear to beat the other
+# variants by exactly the factor it was given. The thread count comes from the manifest
+# the benchmark writes beside the data, read without a JSON package so the script keeps
+# its two dependencies.
+hybridThreads <- 1
+cfgPath <- file.path(dataDir, "benchmark-config.json")
+if (file.exists(cfgPath)) {
+  m <- regmatches(readLines(cfgPath, warn = FALSE),
+                  regexpr('"hybridThreadsPerRank"[[:space:]]*:[[:space:]]*[0-9]+',
+                          readLines(cfgPath, warn = FALSE)))
+  m <- m[nzchar(m)]
+  if (length(m) > 0) hybridThreads <- as.integer(sub('.*:[[:space:]]*', '', m[1]))
+}
+df$cores <- ifelse(df$program == "hybrid", df$numberOfThreads * hybridThreads,
+                   df$numberOfThreads)
 
 # Keep just the instance name ("../instances/NAME.in" -> "NAME").
 df$fileName <- sub("\\.in$", "", basename(as.character(df$fileName)))
@@ -39,31 +61,31 @@ savePlot <- function(p, file) {
   ggsave(file.path(plotsDir, file), p, width = 11, height = 4, dpi = 120)
 }
 
-xlab <- "Number of threads / processes"
+xlab <- sprintf("Cores used (hybrid: processes x %d threads)", hybridThreads)
 
 savePlot(
-  ggplot(df, aes(numberOfThreads, total, color = program, group = program, fill = program)) +
+  ggplot(df, aes(cores, total, color = program, group = program, fill = program)) +
     geom_bar(stat = "identity", position = position_dodge()) +
     labs(x = xlab, y = "Time (s)", title = "Total execution time") +
     facet_grid(. ~ fileName),
   "time.bar.png")
 
 savePlot(
-  ggplot(df, aes(numberOfThreads, total, color = program, group = program)) +
+  ggplot(df, aes(cores, total, color = program, group = program)) +
     geom_line() + geom_point() +
     labs(x = xlab, y = "Time (s)", title = "Total execution time") +
     facet_grid(. ~ fileName),
   "time.line.png")
 
 savePlot(
-  ggplot(df, aes(numberOfThreads, speedup, color = program, group = program, fill = program)) +
+  ggplot(df, aes(cores, speedup, color = program, group = program, fill = program)) +
     geom_bar(stat = "identity", position = position_dodge()) +
     labs(x = xlab, y = "Speedup", title = "Speedup vs serial") +
     facet_grid(. ~ fileName),
   "speedup.bar.png")
 
 savePlot(
-  ggplot(df, aes(numberOfThreads, speedup, color = program, group = program)) +
+  ggplot(df, aes(cores, speedup, color = program, group = program)) +
     geom_line() + geom_point() +
     geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
     labs(x = xlab, y = "Speedup", title = "Speedup vs serial") +

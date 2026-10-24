@@ -9,9 +9,9 @@ void filterFinalMatrix(const Grid &g, const Config &cfg, const Cell &cell,
     int F = cfg.features, U = cfg.users;
     int uLocal = cell.uLocal, iLocal = cell.iLocal;
 
-    // B = L*R on this cell (each user owns its B-row -> thread over users), then mask
+    // B = L*R on this cell, then mask. Each user owns its B-row, so the rows are
+    // independent -- which is what mpi-hybrid/ threads over; here they run in order.
     double *B = new double[(size_t) uLocal * iLocal + 1];
-    #pragma omp parallel for schedule(static)
     for (int lu = 0; lu < uLocal; lu++) {
         double *Brow = B + (size_t) lu * iLocal;
         for (int li = 0; li < iLocal; li++) Brow[li] = 0.0;
@@ -27,7 +27,6 @@ void filterFinalMatrix(const Grid &g, const Config &cfg, const Cell &cell,
     // per-user argmax over the local item-block, then combine across the row
     struct DblInt { double v; int idx; };
     DblInt *pair = new DblInt[uLocal > 0 ? uLocal : 1];
-    #pragma omp parallel for schedule(static)
     for (int lu = 0; lu < uLocal; lu++) {
         double mx = 0.0;
         int arg = 0;
@@ -38,6 +37,11 @@ void filterFinalMatrix(const Grid &g, const Config &cfg, const Cell &cell,
         pair[lu].v = mx;
         pair[lu].idx = arg;
     }
+    // INVARIANT: pair[].idx must be the GLOBAL item index, not the block-local one.
+    // Serial scans items in ascending order with a strict >, so it keeps the lowest index
+    // on a tie; MPI_MAXLOC breaks value ties by choosing the smallest index it is given.
+    // Those two rules agree only while the reduced index is global -- with local indices,
+    // a tie would resolve to whichever block happens to have the smaller offset.
     MPI_Allreduce(MPI_IN_PLACE, pair, uLocal, MPI_DOUBLE_INT, MPI_MAXLOC, g.rowComm);
 
     int *bvLocal = new int[uLocal > 0 ? uLocal : 1];

@@ -8,7 +8,6 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(MPI REQUIRED)
-find_package(OpenMP REQUIRED)
 
 add_executable(matFact-mpi
         matFact.cpp
@@ -21,7 +20,7 @@ add_executable(matFact-mpi
         src/updateLR.cpp src/updateLR.h
         src/filterFinalMatrix.cpp src/filterFinalMatrix.h)
 
-target_link_libraries(matFact-mpi PRIVATE MPI::MPI_CXX OpenMP::OpenMP_CXX)
+target_link_libraries(matFact-mpi PRIVATE MPI::MPI_CXX)
 
 enable_testing()
 add_subdirectory(tests)

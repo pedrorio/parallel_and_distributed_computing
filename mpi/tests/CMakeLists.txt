@@ -1,12 +1,13 @@
-# Integration tests for the 2D-grid hybrid MPI+OpenMP solver, driven by CTest.
+# Integration tests for the pure MPI 2D-grid solver, driven by CTest.
 #
 # Same approach as mpi/tests: the program is a real multi-process executable, so
 # each test launches `mpirun -np N matFact-mpi <instance>` and checks that the
 # printed recommendations match the course-provided <instance>.out and are
-# invariant to the process count. The grid solver additionally has a 2D process
-# mesh and OpenMP threads, so this suite also covers non-square grids, empty
-# blocks (more ranks than users/items), and the hybrid path with OMP_NUM_THREADS
-# pinned. No GoogleTest dependency is required.
+# invariant to the process count. The solver arranges ranks as a 2D mesh, so this
+# suite also covers non-square grids and empty blocks (more ranks than
+# users/items). No GoogleTest dependency is required.
+#
+# Thread-dependent cases live in mpi-hybrid/tests/ -- this variant has no threads.
 
 find_package(MPI REQUIRED)
 
@@ -25,10 +26,8 @@ if(MPIEXEC_EXECUTABLE)
     endif()
 endif()
 
-# Register a "reproduce <instance>.out at NP procs" test, optionally pinning
-# OMP_NUM_THREADS to exercise the hybrid path.
+# Register a "reproduce <instance>.out at NP procs" test.
 function(mpi_compare_test name np inst)
-    cmake_parse_arguments(T "" "THREADS" "" ${ARGN})
     add_test(
             NAME ${name}
             COMMAND ${CMAKE_COMMAND}
@@ -40,9 +39,6 @@ function(mpi_compare_test name np inst)
                 -DINPUT=${INSTANCES_DIR}/${inst}.in
                 -DEXPECTED=${INSTANCES_DIR}/${inst}.out
                 -P ${DRIVER})
-    if(T_THREADS)
-        set_tests_properties(${name} PROPERTIES ENVIRONMENT "OMP_NUM_THREADS=${T_THREADS}")
-    endif()
 endfunction()
 
 set(GRID_INSTANCES
@@ -67,15 +63,11 @@ foreach(np 3 8 9)
 endforeach()
 
 # Empty blocks: more ranks than users/items (np16=4x4 on tiny inst0, 3 users).
+# np8 is a 4x2 grid, so grid row 0 already owns zero users -- the cheapest case
+# that exercises an empty block, and the one that caught the zero-length
+# array-section reduction in updateLR under libgomp.
+mpi_compare_test(mpi.empty_blocks.np8  8  inst0)
 mpi_compare_test(mpi.empty_blocks.np16 16 inst0)
-
-# Hybrid path: pin OMP_NUM_THREADS so each rank actually forks threads; the
-# output must still match .out (invariance to thread count and to the FP
-# reordering the per-thread reduction introduces).
-mpi_compare_test(mpi.hybrid.np1.t4  1  inst500-500-20-2-100   THREADS 4)
-mpi_compare_test(mpi.hybrid.np2.t2  2  inst1000-1000-100-2-30 THREADS 2)
-mpi_compare_test(mpi.hybrid.np2.t4  2  inst1000-1000-100-2-30 THREADS 4)
-mpi_compare_test(mpi.hybrid.empty_blocks.np16.t2 16 inst0     THREADS 2)
 
 # Determinism: the result must not depend on how many processes ran it.
 foreach(inst inst0 inst500-500-20-2-100 inst1000-1000-100-2-30)
@@ -91,6 +83,22 @@ foreach(inst inst0 inst500-500-20-2-100 inst1000-1000-100-2-30)
                 -DINPUT=${INSTANCES_DIR}/${inst}.in
                 -P ${DRIVER})
 endforeach()
+
+# Run-to-run stability at a FIXED configuration: the same process count must print the
+# same recommendations twice. The determinism cases above vary the process count; this
+# one holds it constant, which is the separate property mpi/README.md claims. The driver
+# compares two runs whenever NP2 is set, so NP2 == NP expresses "run it again".
+add_test(
+        NAME mpi.repeatable.np4
+        COMMAND ${CMAKE_COMMAND}
+            -DMPIEXEC=${MPIEXEC_EXECUTABLE}
+            -DNPFLAG=${MPIEXEC_NUMPROC_FLAG}
+            -DNP=4
+            -DNP2=4
+            -DOVERSUB=${OVERSUB}
+            -DBIN=$<TARGET_FILE:matFact-mpi>
+            -DINPUT=${INSTANCES_DIR}/inst1000-1000-100-2-30.in
+            -P ${DRIVER})
 
 # Robustness: bad input must make every rank abort cleanly, never deadlock.
 # WILL_FAIL expects a non-zero exit; the TIMEOUT turns a hang into a failure.

@@ -1,8 +1,15 @@
 !Makefile
 
+# Build trees: ignore their contents but keep the committed .gitkeep placeholders
+**/build/*
+!**/build/.gitkeep
+
+**/.DS_Store
 **/*.cbp
 **/Makefile
 **/*.cmake
+# ...but the CTest drivers are source, not generated build files
+!**/tests/run_compare.cmake
 !mpi/tests/run_compare.cmake
 **/CMakeCache.txt
 **/cmake-build-debug
@@ -20,3 +27,6 @@
 compare/compare
 
 matFact-*
+
+.claude/worktrees/
+.claude/settings.local.json

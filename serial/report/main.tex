@@ -189,8 +189,36 @@ for (i = 0; i < users; i++) {
     \subsection{An honest speedup baseline}\label{subsec:baseline}
     Speedup is reported against the serial time, so an un-optimised baseline inflates the
     numbers. Tightening the serial kernel first means the parallel speedups measure real
-    work, not a strawman --- and it is why a one-thread OpenMP run sits near $1.0$
-    (parallel overhead against a tight serial), not above it.
+    work, not a strawman --- and it is why a one-thread OpenMP run does not sit above
+    $1.0$: it pays fork/join and reduction overhead against a tight serial for no
+    parallelism in return.
+
+    Measured on an Apple Silicon laptop (macOS 15.6, 10 cores, 8 of them performance
+    cores) by \texttt{compare/scripts/benchmark.py}, three repetitions with the minimum
+    kept, every run verified against the instance's \texttt{.out} file. Every figure here
+    traces to a row in \texttt{compare/data/comparison.\{serial,omp\}.csv} and is
+    reproducible from this repository; the cluster figures in the OpenMP report were
+    measured on different hardware and are not comparable with these.
+
+    \begin{table}[!h]
+        \caption{\label{tab:serial-baseline}The serial baseline against a one-thread
+        OpenMP run --- \textbf{this laptop} (time, s).}
+        \centering
+        \resizebox{\linewidth}{!}{
+            \begin{tabular}[t]{lrrr}
+                \toprule
+                fileName & serial & OpenMP, 1 thread & ratio\\
+                \midrule
+                inst1000-1000-100-2-30.in & 4.48 & 4.77 & 0.94\\
+                inst500-500-20-2-100.in & 8.51 & 10.39 & 0.82\\
+                inst200-10000-50-100-300.in & 6.68 & 7.57 & 0.88\\
+                \bottomrule
+            \end{tabular}}
+    \end{table}
+
+    The ratio runs $0.82$--$0.94$: a one-thread parallel run is $6$--$22\,\%$
+    \emph{slower} than the serial program it is built from. Quoting that column as $1.0$
+    would silently credit the parallel version with work it never did.
 
     \subsection{The irreducible serial fraction}\label{subsec:amdahl}
     \texttt{initialLR} cannot be parallelised: the random draws must occur in order, or

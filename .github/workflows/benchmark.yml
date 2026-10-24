@@ -1,0 +1,98 @@
+name: benchmark
+
+# Re-measures serial / OpenMP / MPI / hybrid wall-clock time, rewrites
+# compare/data/comparison.*.csv, and regenerates compare/plots/*.png.
+#
+# NOTE: GitHub-hosted runners have shared, variable vCPUs, so the absolute times
+# and speedups produced here are indicative only — not a substitute for a
+# benchmark on dedicated hardware. Parallelism is capped at the runner's core
+# count (benchmark.py) to avoid oversubscription skewing the numbers.
+#
+# Manual only, and it does not commit by default. Runner numbers carry no
+# provenance label and come from a third machine, so auto-committing them would
+# overwrite the published laptop-measured data with figures that the reports
+# cannot attribute. Download the uploaded artifact to inspect a run; regenerating
+# the committed data stays a deliberate local act.
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Commit the updated CSVs and plots back to this branch
+        type: boolean
+        default: false
+      reps:
+        description: Repetitions per measurement (minimum is kept)
+        type: string
+        default: "3"
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libopenmpi-dev openmpi-bin r-base-core r-cran-ggplot2
+
+      - name: Build serial, omp, mpi (-O3)
+        run: |
+          mkdir -p build
+          g++ -O3 -std=c++11 -fopenmp serial/src/*.cpp -o build/mf_serial
+          g++ -O3 -std=c++11 -fopenmp omp/src/*.cpp    -o build/mf_omp
+          mpicxx -O3 -std=c++11 mpi/matFact.cpp mpi/src/*.cpp -o build/mf_mpi
+          mpicxx -O3 -std=c++11 -fopenmp mpi-hybrid/matFact.cpp mpi-hybrid/src/*.cpp \
+            -o build/mf_mpi_hybrid
+
+      - name: Run benchmark
+        env:
+          SERIAL_BIN: ${{ github.workspace }}/build/mf_serial
+          OMP_BIN: ${{ github.workspace }}/build/mf_omp
+          MPI_BIN: ${{ github.workspace }}/build/mf_mpi
+          HYBRID_BIN: ${{ github.workspace }}/build/mf_mpi_hybrid
+          REPS: ${{ github.event.inputs.reps || '3' }}
+        run: python3 compare/scripts/benchmark.py
+
+      # always(): benchmark.py writes the CSVs recording any mismatch and *then* exits
+      # non-zero, so without this the one run whose evidence matters most is the one
+      # whose evidence is discarded.
+      - name: Regenerate plots
+        if: always()
+        run: Rscript compare/scripts/graphs.R
+
+      - name: Upload results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            compare/data/comparison.*.csv
+            compare/data/benchmark-config.json
+            compare/plots/*.png
+
+      - name: Commit updated benchmark
+        if: ${{ github.event.inputs.commit == 'true' }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add compare/data/comparison.serial.csv \
+                  compare/data/comparison.omp.csv \
+                  compare/data/comparison.mpi.csv \
+                  compare/data/comparison.hybrid.csv \
+                  compare/data/benchmark-config.json \
+                  compare/plots/speedup.bar.png \
+                  compare/plots/speedup.line.png \
+                  compare/plots/time.bar.png \
+                  compare/plots/time.line.png
+          if git diff --cached --quiet; then
+            echo "No benchmark changes to commit."
+          else
+            git commit -m "Update performance benchmark [skip ci]"
+            git push
+          fi
