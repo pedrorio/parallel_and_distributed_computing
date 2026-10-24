@@ -27,3 +27,6 @@
 compare/compare
 
 matFact-*
+
+.claude/worktrees/
+.claude/settings.local.json
