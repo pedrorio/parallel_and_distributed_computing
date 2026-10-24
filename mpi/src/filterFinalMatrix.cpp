@@ -9,9 +9,9 @@ void filterFinalMatrix(const Grid &g, const Config &cfg, const Cell &cell,
     int F = cfg.features, U = cfg.users;
     int uLocal = cell.uLocal, iLocal = cell.iLocal;
 
-    // B = L*R on this cell (each user owns its B-row -> thread over users), then mask
+    // B = L*R on this cell, then mask. Each user owns its B-row, so the rows are
+    // independent -- which is what mpi-hybrid/ threads over; here they run in order.
     double *B = new double[(size_t) uLocal * iLocal + 1];
-    #pragma omp parallel for schedule(static)
     for (int lu = 0; lu < uLocal; lu++) {
         double *Brow = B + (size_t) lu * iLocal;
         for (int li = 0; li < iLocal; li++) Brow[li] = 0.0;
@@ -27,7 +27,6 @@ void filterFinalMatrix(const Grid &g, const Config &cfg, const Cell &cell,
     // per-user argmax over the local item-block, then combine across the row
     struct DblInt { double v; int idx; };
     DblInt *pair = new DblInt[uLocal > 0 ? uLocal : 1];
-    #pragma omp parallel for schedule(static)
     for (int lu = 0; lu < uLocal; lu++) {
         double mx = 0.0;
         int arg = 0;
