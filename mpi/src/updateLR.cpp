@@ -31,7 +31,7 @@ void updateLR(const Grid &g, const Config &cfg, const Cell &cell,
     // only on this rank's block, so every thread in the team takes the same branch and
     // all of them still encounter the remaining worksharing regions in the same order.
     if (lN > 0 && rN > 0) {
-        #pragma omp for schedule(static) reduction(+ : dL[:lN], dR[:rN])
+        #pragma omp for schedule(guided) reduction(+ : dL[:lN], dR[:rN])
         for (int m = 0; m < cell.nnz; m++) {
             int lu = cell.localUser[m], li = cell.localItem[m];
             double pred = 0.0;
@@ -47,6 +47,12 @@ void updateLR(const Grid &g, const Config &cfg, const Cell &cell,
 
     // cross-rank reduction: only the main thread touches MPI (MPI_THREAD_FUNNELED).
     // The reduction-for above ends with an implicit barrier, so dL/dR are complete here.
+    //
+    // INVARIANT: dL goes over the ROW communicator and dR over the COLUMN one, and they
+    // are not interchangeable. A user's gradient needs contributions from every item, and
+    // the ranks holding this rank's user-rows for other item-blocks are the ones in its
+    // grid row; an item's gradient needs every user, which is its grid column. Swapping
+    // the two communicators still runs and still converges -- to the wrong answer.
     #pragma omp master
     {
         MPI_Allreduce(MPI_IN_PLACE, dL, uLocal * F, MPI_DOUBLE, MPI_SUM, g.rowComm);

@@ -96,11 +96,18 @@ foreach(inst inst0 inst500-500-20-2-100 inst1000-1000-100-2-30)
                 -P ${DRIVER})
 endforeach()
 
-# Run-to-run reproducibility at a FIXED configuration: the same process and thread
-# count must produce the same output twice. This is what schedule(static) on the
-# gradient loop buys -- under schedule(guided) the per-thread reduction could sum in
-# a different order on each run, so an exact-output assertion was only ever
-# probabilistically true. Threads are pinned so the per-thread reduction is live.
+# Run-to-run stability of the OUTPUT at a fixed configuration: the same process and
+# thread count must print the same recommendations twice. Threads are pinned so the
+# per-thread reduction is live.
+#
+# Note what this does and does not assert. The computation itself is NOT bitwise
+# reproducible with threads on: the per-thread reduction privates are combined in
+# whatever order threads finish, which OpenMP does not specify, so L and R differ in
+# their last bits between runs (measured: 8 distinct L/R checksums in 8 runs at
+# np2/T4, under schedule(static) and schedule(guided) alike -- the loop schedule does
+# not control it). The recommendations are integer argmax indices and are insensitive
+# to that drift, which is why this holds. It is the output contract that matters here;
+# a bitwise-reproducible gradient would need a fixed-order reduction instead.
 add_test(
         NAME mpi.repeatable.np2.t4
         COMMAND ${CMAKE_COMMAND}
