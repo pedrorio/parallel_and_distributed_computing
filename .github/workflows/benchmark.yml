@@ -59,10 +59,15 @@ jobs:
           REPS: ${{ github.event.inputs.reps || '3' }}
         run: python3 compare/scripts/benchmark.py
 
+      # always(): benchmark.py writes the CSVs recording any mismatch and *then* exits
+      # non-zero, so without this the one run whose evidence matters most is the one
+      # whose evidence is discarded.
       - name: Regenerate plots
+        if: always()
         run: Rscript compare/scripts/graphs.R
 
       - name: Upload results as artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results

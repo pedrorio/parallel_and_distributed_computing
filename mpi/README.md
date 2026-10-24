@@ -6,7 +6,7 @@ settings — pure by construction, not by configuration.
 
 It produces the **same recommendations as the serial version**, byte-for-byte identical
 output, at any process count and grid shape, and the same output on repeated runs.
-`mpi/tests/` asserts all three across 32 cases.
+`mpi/tests/` asserts all three across 33 cases.
 
 > The MPI + OpenMP hybrid is a separate deliverable in **[`mpi-hybrid/`](../mpi-hybrid/)**.
 > It shares this 2D-grid decomposition and adds shared-memory threading inside each rank;
@@ -102,7 +102,7 @@ on this binary, by design. If you want threads within a rank, that is
 cmake -S . -B build && cmake --build build && (cd build && ctest)
 ```
 
-32 cases, no GoogleTest dependency: every instance reproduced at 1, 2 and 4 processes,
+33 cases, no GoogleTest dependency: every instance reproduced at 1, 2 and 4 processes,
 non-square and prime grids, empty blocks where processes outnumber users or items,
-output invariance across process counts, and the error paths that must abort every rank
-rather than deadlock.
+output invariance across process counts, the same output when a configuration is run
+twice, and the error paths that must abort every rank rather than deadlock.

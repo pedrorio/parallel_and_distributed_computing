@@ -233,8 +233,9 @@
     so floating-point results differ in the last bits --- but the arg-max is robust to
     that, so the recommendations match the serial output byte for byte at every process
     count and grid shape. A deterministic serial reference is what makes this verifiable,
-    and the test suite asserts it rather than assuming it: 32 cases covering every
-    instance at 1, 2 and 4 processes, non-square and prime grids, and blocks left empty
-    when processes outnumber users or items.
+    and the test suite asserts it rather than assuming it: 33 cases covering every
+    instance at 1, 2 and 4 processes, non-square and prime grids, blocks left empty when
+    processes outnumber users or items, and the same output when one configuration is
+    run twice.
 
 \end{document}

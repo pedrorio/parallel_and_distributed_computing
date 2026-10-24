@@ -59,6 +59,11 @@ NCPU = os.cpu_count() or 1
 PARALLELISM = [int(x) for x in env("PARALLELISM", "1 2 4").split()]
 PARALLELISM = [p for p in PARALLELISM if p <= NCPU] or [1]
 
+# The hybrid spends HYBRID_THREADS cores per process, so it runs at fewer process
+# counts than the others. Recorded separately: quoting PARALLELISM for it would
+# overstate what was measured.
+HYBRID_PARALLELISM = [p for p in PARALLELISM if p * HYBRID_THREADS <= NCPU]
+
 INSTANCES = env(
     "INSTANCES",
     "inst1000-1000-100-2-30 inst500-500-20-2-100 inst200-10000-50-100-300",
@@ -141,7 +146,9 @@ def write_config(bad_total):
         },
         "instances": INSTANCES,
         "workerCounts": PARALLELISM,
+        "hybridProcessCounts": HYBRID_PARALLELISM,
         "hybridThreadsPerRank": HYBRID_THREADS,
+        "hybridBinding": "--bind-to none (threads would otherwise share one core)",
         "repetitions": REPS,
         "reduction": "minimum of %d repetitions" % REPS,
         "timing": "end-to-end wall clock, recorded in the loop column; "
@@ -207,11 +214,17 @@ def main():
                               reference), "mpi np=%d" % p))
         # The hybrid is measured with threads live, and never oversubscribed:
         # processes x threads must stay within the core count.
-        for p in [p for p in PARALLELISM if p * HYBRID_THREADS <= NCPU]:
+        #
+        # --bind-to none is required, not cosmetic. Open MPI binds a rank to a single
+        # core by default at low process counts, which would confine every OpenMP thread
+        # of that rank to one core -- the run would then measure thread contention rather
+        # than threading. The effect is invisible on macOS, where binding is unsupported,
+        # and decisive on a Linux runner.
+        for p in HYBRID_PARALLELISM:
             print("[%s] hybrid np=%d t=%d" % (inst, p, HYBRID_THREADS), flush=True)
             tally(record("hybrid", p,
-                         best([MPIRUN, "-np", str(p), HYBRID, infile], reference,
-                              {"OMP_NUM_THREADS": str(HYBRID_THREADS)}),
+                         best([MPIRUN, "--bind-to", "none", "-np", str(p), HYBRID, infile],
+                              reference, {"OMP_NUM_THREADS": str(HYBRID_THREADS)}),
                          "hybrid np=%d t=%d" % (p, HYBRID_THREADS)))
 
     os.makedirs(OUTDIR, exist_ok=True)

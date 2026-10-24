@@ -4,9 +4,13 @@ The **MPI + OpenMP hybrid** deliverable. It is the pure MPI solver in
 [`mpi/`](../mpi/) with a second level of parallelism added: MPI distributes the problem
 across processes, and each process fans its own share across OpenMP threads.
 
-Output is identical to `mpi/` and to the serial version — byte-for-byte, at any process
-count, grid shape **or thread count**, and on repeated runs of the same configuration.
-`mpi-hybrid/tests/` asserts all four across 37 cases.
+Output matches `mpi/` and the serial version byte-for-byte at any process count, grid
+shape **or thread count**, and on repeated runs of the same configuration —
+`mpi-hybrid/tests/` asserts all four across 37 cases. Read that as what the suite
+checks rather than as a proof: the gradient itself is not bitwise reproducible with
+threads on (see [below](#reproducibility-stated-precisely)), so the guarantee rests on
+integer arg-max indices being insensitive to that drift, which 37 cases exercise but
+cannot establish in principle.
 
 ## What this adds over `mpi/`
 
@@ -113,7 +117,7 @@ directions, so it was dropped.) Instead:
 2. **Never oversubscribe:** `ranks-per-node × OMP_NUM_THREADS ≤ cores-per-node`.
 3. **Count the memory, not just the cores.** Threads are not free: the gradient loop
    reduces into per-thread private copies of `dL` and `dR`, so each thread adds another
-   `(U·F + F·I)/√P` to the rank's footprint (see [Memory per rank](#memory-per-rank)).
+   `(U·F + F·I)/√P` to the rank's footprint (see [Memory per rank](../mpi/README.md#memory-per-rank)).
    On a memory-tight node, fewer threads per rank may be the only workable split.
 4. **Pick the split by a short scaling sweep** (a handful of submissions varying
    ranks/threads) and take the knee — as a rule of thumb, denser problems and lower rank

@@ -84,6 +84,22 @@ foreach(inst inst0 inst500-500-20-2-100 inst1000-1000-100-2-30)
                 -P ${DRIVER})
 endforeach()
 
+# Run-to-run stability at a FIXED configuration: the same process count must print the
+# same recommendations twice. The determinism cases above vary the process count; this
+# one holds it constant, which is the separate property mpi/README.md claims. The driver
+# compares two runs whenever NP2 is set, so NP2 == NP expresses "run it again".
+add_test(
+        NAME mpi.repeatable.np4
+        COMMAND ${CMAKE_COMMAND}
+            -DMPIEXEC=${MPIEXEC_EXECUTABLE}
+            -DNPFLAG=${MPIEXEC_NUMPROC_FLAG}
+            -DNP=4
+            -DNP2=4
+            -DOVERSUB=${OVERSUB}
+            -DBIN=$<TARGET_FILE:matFact-mpi>
+            -DINPUT=${INSTANCES_DIR}/inst1000-1000-100-2-30.in
+            -P ${DRIVER})
+
 # Robustness: bad input must make every rank abort cleanly, never deadlock.
 # WILL_FAIL expects a non-zero exit; the TIMEOUT turns a hang into a failure.
 set(MPIRUN_LAUNCH "${MPIEXEC_EXECUTABLE}")
