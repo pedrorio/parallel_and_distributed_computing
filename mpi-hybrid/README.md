@@ -1,63 +1,56 @@
-# `mpi` — distributed matrix factorisation on a 2D process grid
+# `mpi-hybrid` — the 2D-grid solver with OpenMP threads inside each rank
 
-A hybrid MPI + OpenMP solver for the recommender factorisation `A ≈ L·R`. It produces
-the **same recommendations as the serial version**, byte-for-byte identical output, at
-any process count, grid shape or thread count — and the same output on repeated runs of
-the same configuration. `mpi/tests/` asserts all four.
+The **MPI + OpenMP hybrid** deliverable. It is the pure MPI solver in
+[`mpi/`](../mpi/) with a second level of parallelism added: MPI distributes the problem
+across processes, and each process fans its own share across OpenMP threads.
 
-That is a guarantee about the *output*, not the arithmetic. With threads on, `L` and `R`
-differ in their last bits between runs, because OpenMP does not specify the order in
-which per-thread reduction privates are merged. The recommendations are integer argmax
-indices and are insensitive to drift that small, which is why the output guarantee holds
-anyway. A bitwise-reproducible gradient would need a fixed-order reduction.
+Output is identical to `mpi/` and to the serial version — byte-for-byte, at any process
+count, grid shape **or thread count**, and on repeated runs of the same configuration.
+`mpi-hybrid/tests/` asserts all four across 37 cases.
 
-## Why a 2D grid
+## What this adds over `mpi/`
 
-A naive **replicate-all** design would keep full copies of `L` and `R` on every rank and
-reduce the whole gradient over `MPI_COMM_WORLD` each iteration — so memory is `O(L+R)` per
-rank and the dense `Allreduce` becomes a communication ceiling (it *anti-scales* on wide
-instances).
+The 2D-grid decomposition, the partitioning, the row/column reductions, the determinism
+of the initialisation and the memory story are all **shared with `mpi/`**, and
+[its README](../mpi/README.md) is the reference for them. This file covers only what the
+hybrid layer adds:
 
-`mpi` instead arranges the ranks as a `Pr × Pc` mesh:
+- **One parallel region per run, not per iteration.** The region is hoisted around the
+  whole iteration loop in `matFact.cpp`, so threads are forked once; `updateLR` is written
+  as *orphaned* worksharing that binds to it. Forking per iteration would dominate the
+  work on these instances.
+- **Threads are opt-in.** With `OMP_NUM_THREADS` unset the solver sets one thread per
+  rank, so a plain run never oversubscribes and matches `mpi/` in behaviour.
+- **MPI stays on one thread.** Start-up requests `MPI_THREAD_FUNNELED` and the two
+  `Allreduce` calls sit in an `omp master` region followed by an explicit barrier, so
+  only the main thread touches MPI while the others wait for the reduced gradient.
+- **The empty-block guard is load-bearing here.** When a rank's block is empty, the
+  gradient loop's array-section reduction would have zero length, which is invalid OpenMP
+  and faults under libgomp. `mpi/` keeps the same guard, but there it is only tidiness.
 
-- `L` is split by **user-rows** across the grid rows, `R` by **item-columns** across the
-  grid columns.
-- A non-zero `(u, i)` is owned by rank `(userBlock(u), itemBlock(i))`, so each rank holds
-  exactly the `L`-rows and `R`-cols its non-zeros touch — see
-  [Memory per rank](#memory-per-rank) for what that costs.
-- Each iteration: local partial gradient, then `dL` is summed across the **row**
-  communicator and `dR` down the **column** communicator. These reductions move
-  `√P`-smaller slices over `√P`-sized sub-communicators, so **communication also falls
-  with `P`** instead of hitting a ceiling.
-- `B = L·R`, the argmax, and the gather are all distributed too (no serial-root tail).
+### Memory: threads are not free
 
-Determinism is preserved by a *generate-and-discard* init: every rank walks the full
-`srandom(1)` sequence in serial order but keeps only its slice.
+On top of the per-rank footprint described in [`mpi/`](../mpi/README.md#memory-per-rank),
+the gradient loop reduces into **per-thread private copies** of `dL` and `dR`. Each
+thread therefore adds about another `(U·F + F·I)/√P` to the rank. On a memory-tight node,
+fewer threads per rank may be the only workable split.
 
-### Memory per rank
+### Reproducibility, stated precisely
 
-Everything that scales with the problem falls with `P`, but the factor matrices are not
-the term that binds:
+With threads on, `L` and `R` differ in their last bits between runs: OpenMP does not
+specify the order in which per-thread reduction privates are merged, and implementations
+merge them as threads finish. Measured on this project, a fixed configuration produced
+eight distinct `L`/`R` checksums in eight runs — under `schedule(static)` and
+`schedule(guided)` alike, so the loop schedule does not control it.
 
-| allocation | size per rank |
-|---|---|
-| `L`, `R` | `(U·F + F·I)/√P` |
-| `dL`, `dR` (gradient accumulators) | `(U·F + F·I)/√P` again |
-| per-thread reduction privates | `T × (dL + dR)` — **each thread costs its own copy** |
-| `B = L·R` (dense, in the final filter) | `U·I/P` |
-
-`B` dominates on every instance in `instances/`: for `inst200-10000-50-100-300` it is
-`2,000k` doubles against `510k` for `L+R`; for `inst1000-1000-100-2-30`, `1,000k` against
-`200k`. It is inherited from the serial algorithm, which materialises the same dense
-matrix, so it is not a regression — but a memory estimate that leaves it out is off by
-roughly a factor of five.
-
-The replicate-all comparison above still holds: `U·I/P` and `(U·F + F·I)/√P` both fall
-with `P`, while replicate-all's `O(L+R)` per rank does not fall at all.
+The published output is unaffected: recommendations are integer argmax indices and are
+insensitive to drift that small, which is why the byte-for-byte guarantee above holds
+anyway. A bitwise-reproducible gradient would need a fixed-order reduction, which this
+solver does not do.
 
 ## Module layout
 
-The driver sits at the top level and the modules live in `src/`, mirroring `mpi/`:
+The driver sits at the top level and the modules live in `src/`, mirroring `mpi/` file for file so the two trees stay easy to compare:
 
 | file | role |
 |---|---|
@@ -77,17 +70,17 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 # or directly (macOS / Apple clang + libomp):
 mpicxx -std=c++11 -O3 -Xclang -fopenmp \
   -I$(brew --prefix libomp)/include -L$(brew --prefix libomp)/lib -lomp \
-  matFact.cpp src/*.cpp -o matFact-mpi
+  matFact.cpp src/*.cpp -o matFact-mpi-hybrid
 ```
 
 ## Run
 
 ```sh
-# pure MPI (default: one thread per rank)
-mpirun -np <P> ./matFact-mpi instance.in
+# one thread per rank (equivalent to mpi/, useful as the hybrid's own baseline)
+mpirun -np <P> ./matFact-mpi-hybrid instance.in
 
 # hybrid: opt into threads explicitly, ideally one rank per socket
-OMP_NUM_THREADS=<T> mpirun -np <P> ./matFact-mpi instance.in
+OMP_NUM_THREADS=<T> mpirun -np <P> ./matFact-mpi-hybrid instance.in
 ```
 
 `P` is factored into a balanced `Pr × Pc` automatically (`MPI_Dims_create`); it works at
@@ -99,7 +92,8 @@ thread count to stderr.
 The default is **one thread per rank (pure MPI)**, and OpenMP is **explicit opt-in**.
 This is deliberate, and it matches what we measured:
 
-- **On a single shared-memory node, pure MPI usually wins.** Shared-memory MPI is nearly
+- **On a single shared-memory node, pure MPI usually wins** — that is what
+  [`mpi/`](../mpi/) is for. Shared-memory MPI is nearly
   free, while threads add reduction/barrier overhead. More ranks beat more threads — the
   one exception is a wide, communication-bound instance at high rank count, where adding
   ranks would over-communicate; there a few threads/rank help.
