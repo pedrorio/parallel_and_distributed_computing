@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [serial, omp, mpi]
+        project: [serial, omp, mpi, mpi-hybrid]
     steps:
       - uses: actions/checkout@v4
 
@@ -29,25 +29,29 @@ jobs:
 
       # The serial/omp GoogleTest suites read instances from
       # $TECNICO/distributed_and_parallel_computing/instances/. Point that
-      # hard-coded path at this checkout via a symlink. (MPI uses CTest with a
-      # relative instances path and needs none of this.)
+      # hard-coded path at this checkout via a symlink. (Both MPI variants use
+      # CTest with a relative instances path and need none of this.)
       - name: Point GoogleTest suites at instances/
-        if: matrix.project != 'mpi'
+        if: matrix.project != 'mpi' && matrix.project != 'mpi-hybrid'
         run: |
           ln -sfn "$GITHUB_WORKSPACE" "$RUNNER_TEMP/distributed_and_parallel_computing"
           echo "TECNICO=$RUNNER_TEMP" >> "$GITHUB_ENV"
 
       - name: Configure
         run: |
-          if [ "${{ matrix.project }}" = mpi ]; then
-            cmake -S mpi -B mpi/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=mpicxx
-          else
+          case "${{ matrix.project }}" in
+            mpi|mpi-hybrid)
+            cmake -S ${{ matrix.project }} -B ${{ matrix.project }}/build \
+              -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=mpicxx
+            ;;
+            *)
             # -pthread: the suites link GoogleTest via the legacy
             # ${GTEST_LIBRARIES} variable, which does not carry the pthread
             # dependency that libgtest needs on Linux.
             cmake -S ${{ matrix.project }} -B ${{ matrix.project }}/build \
               -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-pthread
-          fi
+            ;;
+          esac
 
       - name: Build
         run: cmake --build ${{ matrix.project }}/build --parallel

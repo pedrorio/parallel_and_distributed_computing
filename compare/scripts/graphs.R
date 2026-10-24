@@ -9,7 +9,9 @@ dataDir  <- normalizePath(file.path(scriptDir, "..", "data"))
 plotsDir <- file.path(scriptDir, "..", "plots")
 dir.create(plotsDir, showWarnings = FALSE, recursive = TRUE)
 
-programs <- c("serial", "omp", "mpi")
+# The project's four deliverables. "mpi" is pure MPI scaled by process count;
+# "hybrid" is MPI+OpenMP with threads on (see benchmark-config.json).
+programs <- c("serial", "omp", "mpi", "hybrid")
 
 readProgram <- function(name) {
   d <- read.csv(file.path(dataDir, sprintf("comparison.%s.csv", name)),

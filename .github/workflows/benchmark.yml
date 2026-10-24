@@ -1,6 +1,6 @@
 name: benchmark
 
-# Re-measures serial / OpenMP / MPI wall-clock time, rewrites
+# Re-measures serial / OpenMP / MPI / hybrid wall-clock time, rewrites
 # compare/data/comparison.*.csv, and regenerates compare/plots/*.png.
 #
 # NOTE: GitHub-hosted runners have shared, variable vCPUs, so the absolute times
@@ -46,13 +46,16 @@ jobs:
           mkdir -p build
           g++ -O3 -std=c++11 -fopenmp serial/src/*.cpp -o build/mf_serial
           g++ -O3 -std=c++11 -fopenmp omp/src/*.cpp    -o build/mf_omp
-          mpicxx -O3 -std=c++11 -fopenmp mpi/matFact.cpp mpi/src/*.cpp -o build/mf_mpi
+          mpicxx -O3 -std=c++11 mpi/matFact.cpp mpi/src/*.cpp -o build/mf_mpi
+          mpicxx -O3 -std=c++11 -fopenmp mpi-hybrid/matFact.cpp mpi-hybrid/src/*.cpp \
+            -o build/mf_mpi_hybrid
 
       - name: Run benchmark
         env:
           SERIAL_BIN: ${{ github.workspace }}/build/mf_serial
           OMP_BIN: ${{ github.workspace }}/build/mf_omp
           MPI_BIN: ${{ github.workspace }}/build/mf_mpi
+          HYBRID_BIN: ${{ github.workspace }}/build/mf_mpi_hybrid
           REPS: ${{ github.event.inputs.reps || '3' }}
         run: python3 compare/scripts/benchmark.py
 
@@ -65,6 +68,7 @@ jobs:
           name: benchmark-results
           path: |
             compare/data/comparison.*.csv
+            compare/data/benchmark-config.json
             compare/plots/*.png
 
       - name: Commit updated benchmark
@@ -75,6 +79,8 @@ jobs:
           git add compare/data/comparison.serial.csv \
                   compare/data/comparison.omp.csv \
                   compare/data/comparison.mpi.csv \
+                  compare/data/comparison.hybrid.csv \
+                  compare/data/benchmark-config.json \
                   compare/plots/speedup.bar.png \
                   compare/plots/speedup.line.png \
                   compare/plots/time.bar.png \

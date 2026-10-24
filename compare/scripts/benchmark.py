@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
-"""Measure serial / OpenMP / MPI wall-clock time across worker counts and write
-compare/data/comparison.{serial,omp,mpi}.csv in the project's schema.
+"""Measure serial / OpenMP / MPI / hybrid wall-clock time across worker counts and
+write compare/data/comparison.{serial,omp,mpi,hybrid}.csv in the project's schema.
+
+The four variants are the project's four deliverables. "mpi" is the pure MPI solver
+scaled by process count; "hybrid" is the MPI+OpenMP solver, measured with threads
+actually on (HYBRID_THREADS per rank) because measuring it at one thread would only
+reproduce the mpi column.
 
 Every timed run is also checked for correctness: its output is compared against
 the instance's reference .out file and the number of differing recommendations
@@ -21,7 +26,9 @@ counts, repetitions and how they reduce to one figure -- is written next to the
 CSVs as benchmark-config.json, so published data always carries its provenance.
 
 Environment overrides (all optional):
-  SERIAL_BIN, OMP_BIN, MPI_BIN   paths to the three executables
+  SERIAL_BIN, OMP_BIN, MPI_BIN,
+  HYBRID_BIN                      paths to the four executables
+  HYBRID_THREADS                  threads per rank for the hybrid variant (default 2)
   MPIRUN                          mpirun/mpiexec launcher (default: mpirun)
   INSTANCES_DIR, OUT_DIR          input instances / output csv directory
   INSTANCES                       space-separated instance names (no extension)
@@ -40,10 +47,12 @@ def env(key, default):
 SERIAL = env("SERIAL_BIN", "/tmp/mf_serial")
 OMP = env("OMP_BIN", "/tmp/mf_omp")
 MPI = env("MPI_BIN", "/tmp/mf_mpi")
+HYBRID = env("HYBRID_BIN", "/tmp/mf_mpi_hybrid")
 MPIRUN = env("MPIRUN", "mpirun")
 INSTDIR = env("INSTANCES_DIR", os.path.join(ROOT, "instances"))
 OUTDIR = env("OUT_DIR", os.path.join(ROOT, "compare", "data"))
 REPS = int(env("REPS", "3"))
+HYBRID_THREADS = int(env("HYBRID_THREADS", "2"))
 NCPU = os.cpu_count() or 1
 
 # Cap parallelism at the core count: oversubscribing corrupts timing.
@@ -132,12 +141,20 @@ def write_config(bad_total):
         },
         "instances": INSTANCES,
         "workerCounts": PARALLELISM,
+        "hybridThreadsPerRank": HYBRID_THREADS,
         "repetitions": REPS,
         "reduction": "minimum of %d repetitions" % REPS,
         "timing": "end-to-end wall clock, recorded in the loop column; "
                   "other phase columns are not measured",
         "correctness": "every timed run compared against the instance .out file; "
                        "resultsAreCorrect is the number of differing recommendations",
+        "variants": {
+            "serial": "sequential baseline",
+            "omp": "OpenMP, numberOfThreads is threads",
+            "mpi": "pure MPI, numberOfThreads is processes",
+            "hybrid": "MPI+OpenMP, numberOfThreads is processes at "
+                      "%d thread(s) per rank" % HYBRID_THREADS,
+        },
         "totalMismatches": bad_total,
         "mpirun": describe([MPIRUN, "--version"]),
         "commit": describe(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"]),
@@ -150,7 +167,7 @@ def write_config(bad_total):
 
 
 def main():
-    rows = {"serial": [], "omp": [], "mpi": []}
+    rows = {"serial": [], "omp": [], "mpi": [], "hybrid": []}
     nonlocal_counts = [0, 0, 0]   # differing recommendations, bad runs, runs
     for inst in INSTANCES:
         d = dims(inst)
@@ -188,9 +205,17 @@ def main():
             tally(record("mpi", p,
                          best([MPIRUN, "-np", str(p), MPI, infile],
                               reference), "mpi np=%d" % p))
+        # The hybrid is measured with threads live, and never oversubscribed:
+        # processes x threads must stay within the core count.
+        for p in [p for p in PARALLELISM if p * HYBRID_THREADS <= NCPU]:
+            print("[%s] hybrid np=%d t=%d" % (inst, p, HYBRID_THREADS), flush=True)
+            tally(record("hybrid", p,
+                         best([MPIRUN, "-np", str(p), HYBRID, infile], reference,
+                              {"OMP_NUM_THREADS": str(HYBRID_THREADS)}),
+                         "hybrid np=%d t=%d" % (p, HYBRID_THREADS)))
 
     os.makedirs(OUTDIR, exist_ok=True)
-    for ver in ("serial", "omp", "mpi"):
+    for ver in ("serial", "omp", "mpi", "hybrid"):
         path = os.path.join(OUTDIR, "comparison.%s.csv" % ver)
         with open(path, "w", newline="") as f:
             w = csv.writer(f)
@@ -199,7 +224,8 @@ def main():
         print("wrote %s (%d rows)" % (path, len(rows[ver])), flush=True)
     bad_total, bad_runs, total_runs = nonlocal_counts
     print("wrote %s" % write_config(bad_total), flush=True)
-    print("cores=%d parallelism=%s reps=%d" % (NCPU, PARALLELISM, REPS), flush=True)
+    print("cores=%d parallelism=%s reps=%d hybridThreads=%d"
+          % (NCPU, PARALLELISM, REPS, HYBRID_THREADS), flush=True)
 
     if bad_total:
         raise SystemExit("FAILED: %d of %d run(s) did not reproduce the reference "
