@@ -2,9 +2,23 @@
 """Measure serial / OpenMP / MPI wall-clock time across worker counts and write
 compare/data/comparison.{serial,omp,mpi}.csv in the project's schema.
 
+Every timed run is also checked for correctness: its output is compared against
+the instance's reference .out file and the number of differing recommendations
+goes in the `resultsAreCorrect` column (0 = no mismatches, as the old
+verifyResult module reported it). A mismatch is surfaced on stderr and makes the
+script exit non-zero, after the data is written -- an incorrect run must never be
+published as a clean measurement.
+
 The whole end-to-end run time is recorded in the `loop` phase column (the
 dominant phase for these compute-bound instances) so that graphs.R, which derives
-total = readInput + initialLR + loop + finalFiltering, reproduces it.
+total = readInput + initialLR + loop + finalFiltering, reproduces it. The other
+phase columns are written as 0 because nothing measures them: in a distributed run
+a phase time is per-rank and needs a barrier to aggregate, which would perturb the
+very thing being timed.
+
+The configuration each dataset was produced under -- machine, core count, worker
+counts, repetitions and how they reduce to one figure -- is written next to the
+CSVs as benchmark-config.json, so published data always carries its provenance.
 
 Environment overrides (all optional):
   SERIAL_BIN, OMP_BIN, MPI_BIN   paths to the three executables
@@ -14,7 +28,7 @@ Environment overrides (all optional):
   PARALLELISM                     space-separated worker counts (capped to #cores)
   REPS                            repetitions per measurement; the minimum is kept
 """
-import csv, os, subprocess, time
+import csv, datetime, json, os, platform, subprocess, time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -55,40 +69,125 @@ def dims(inst):
                 users=users, items=items, nnz=nnz)
 
 
-def best(cmd, extra_env=None):
+def expected(inst):
+    """The instance's reference recommendations, one per user."""
+    with open(os.path.join(INSTDIR, inst + ".out")) as f:
+        return f.read().split()
+
+
+def mismatches(output, reference):
+    """How many recommendations differ from the reference.
+
+    One mismatch per user whose recommended item differs, plus any missing or
+    extra lines, mirroring what the old verifyResult module counted.
+    """
+    got = output.split()
+    common = min(len(got), len(reference))
+    differing = sum(1 for i in range(common) if got[i] != reference[i])
+    return differing + abs(len(got) - len(reference))
+
+
+def best(cmd, reference, extra_env=None):
+    """Fastest of REPS runs, with the worst correctness result seen across them.
+
+    Output is captured rather than discarded so it can be checked; the pipe is
+    part of the measured interval for every variant equally, so comparisons
+    between them stay valid.
+    """
     e = dict(os.environ)
     if extra_env:
         e.update(extra_env)
-    times = []
+    times, worst = [], 0
     for _ in range(REPS):
         start = time.perf_counter()
-        r = subprocess.run(cmd, stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL, env=e)
+        r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                           env=e, universal_newlines=True)
+        elapsed = time.perf_counter() - start
         if r.returncode != 0:
             raise SystemExit("command failed (%d): %s" % (r.returncode, " ".join(cmd)))
-        times.append(time.perf_counter() - start)
-    return min(times)
+        worst = max(worst, mismatches(r.stdout, reference))
+        times.append(elapsed)
+    return min(times), worst
+
+
+def describe(cmd):
+    """First line of a tool's version output, or None if it cannot be run."""
+    try:
+        r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           universal_newlines=True)
+        return r.stdout.strip().split("\n")[0] or None
+    except OSError:
+        return None
+
+
+def write_config(bad_total):
+    """Record what produced this dataset, next to the dataset itself."""
+    cfg = {
+        "measuredAt": datetime.datetime.now(datetime.timezone.utc)
+                              .strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "machine": {
+            "platform": platform.platform(),
+            "processor": platform.processor() or platform.machine(),
+            "cores": NCPU,
+        },
+        "instances": INSTANCES,
+        "workerCounts": PARALLELISM,
+        "repetitions": REPS,
+        "reduction": "minimum of %d repetitions" % REPS,
+        "timing": "end-to-end wall clock, recorded in the loop column; "
+                  "other phase columns are not measured",
+        "correctness": "every timed run compared against the instance .out file; "
+                       "resultsAreCorrect is the number of differing recommendations",
+        "totalMismatches": bad_total,
+        "mpirun": describe([MPIRUN, "--version"]),
+        "commit": describe(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"]),
+    }
+    path = os.path.join(OUTDIR, "benchmark-config.json")
+    with open(path, "w") as f:
+        json.dump(cfg, f, indent=2)
+        f.write("\n")
+    return path
 
 
 def main():
     rows = {"serial": [], "omp": [], "mpi": []}
+    nonlocal_counts = [0, 0, 0]   # differing recommendations, bad runs, runs
     for inst in INSTANCES:
         d = dims(inst)
         infile = os.path.join(INSTDIR, inst + ".in")
         name = "../instances/%s.in" % inst
+        reference = expected(inst)
 
-        def row(threads, sec):
-            return [name, threads, 0, d["users"], d["items"], d["feats"],
-                    d["nnz"], d["iters"], 0, 0, round(sec, 4), 0, round(sec, 4)]
+        def row(threads, measured, label):
+            sec, bad = measured
+            if bad:
+                print("  !! %s %s: %d recommendation(s) differ from %s.out"
+                      % (inst, label, bad, inst), flush=True)
+            return (bad, [name, threads, bad, d["users"], d["items"], d["feats"],
+                          d["nnz"], d["iters"], 0, 0, round(sec, 4), 0, round(sec, 4)])
+
+        def record(ver, threads, measured, label):
+            bad, r = row(threads, measured, label)
+            rows[ver].append(r)
+            return bad
+
+        def tally(bad):
+            nonlocal_counts[0] += bad
+            nonlocal_counts[1] += 1 if bad else 0
+            nonlocal_counts[2] += 1
 
         print("[%s] serial" % inst, flush=True)
-        rows["serial"].append(row(1, best([SERIAL, infile])))
+        tally(record("serial", 1, best([SERIAL, infile], reference), "serial"))
         for p in PARALLELISM:
             print("[%s] omp t=%d" % (inst, p), flush=True)
-            rows["omp"].append(row(p, best([OMP, infile], {"OMP_NUM_THREADS": str(p)})))
+            tally(record("omp", p,
+                         best([OMP, infile], reference,
+                              {"OMP_NUM_THREADS": str(p)}), "omp t=%d" % p))
         for p in PARALLELISM:
             print("[%s] mpi np=%d" % (inst, p), flush=True)
-            rows["mpi"].append(row(p, best([MPIRUN, "-np", str(p), MPI, infile])))
+            tally(record("mpi", p,
+                         best([MPIRUN, "-np", str(p), MPI, infile],
+                              reference), "mpi np=%d" % p))
 
     os.makedirs(OUTDIR, exist_ok=True)
     for ver in ("serial", "omp", "mpi"):
@@ -98,7 +197,16 @@ def main():
             w.writerow(HEADER)
             w.writerows(rows[ver])
         print("wrote %s (%d rows)" % (path, len(rows[ver])), flush=True)
+    bad_total, bad_runs, total_runs = nonlocal_counts
+    print("wrote %s" % write_config(bad_total), flush=True)
     print("cores=%d parallelism=%s reps=%d" % (NCPU, PARALLELISM, REPS), flush=True)
+
+    if bad_total:
+        raise SystemExit("FAILED: %d of %d run(s) did not reproduce the reference "
+                         "output (%d differing recommendation(s) in total); the data "
+                         "records the mismatches"
+                         % (bad_runs, total_runs, bad_total))
+    print("all runs reproduced their reference output", flush=True)
 
 
 if __name__ == "__main__":
