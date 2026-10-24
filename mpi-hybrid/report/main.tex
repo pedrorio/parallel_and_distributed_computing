@@ -46,7 +46,7 @@
     \includegraphics[scale=0.2]{images/logo.png}\\
     \vskip 0.5em
     \Huge Distributed and Parallel Computing\\
-    \LARGE MPI Report --- 2D Grid \& Hybrid OpenMP\\
+    \LARGE MPI + OpenMP Hybrid Report\\
 }
 
 \author{
@@ -80,6 +80,13 @@
     recommendation per user. The four stages are \emph{ReadInput}, \emph{InitialLR},
     \emph{UpdateLR} (repeated for the requested number of iterations), and
     \emph{FilterFinalMatrix}.
+
+    This report covers the \textbf{MPI + OpenMP hybrid} deliverable. Its distribution
+    across processes --- the 2D grid, the partitioning and the row/column reductions
+    described in the next two sections --- is shared with the pure MPI deliverable in
+    \texttt{mpi/}, which has its own report. What is specific to this variant is the
+    shared-memory layer inside each rank, in Section~\ref{sec:hybrid}, and the thread
+    behaviour measured in Section~\ref{sec:evaluation}.
 
 
     \section{Why a 2D Grid}\label{sec:why-grid}
@@ -151,49 +158,70 @@
 
 
     \section{Evaluation}\label{sec:evaluation}
-    Table~\ref{tab:grid-vs-rep} compares wall-clock time (seconds, single shared-memory
-    node) of the 2D-grid version against the naive replicate-all design.
+    The question this deliverable has to answer is not whether it is faster than serial
+    --- it is --- but whether putting threads \emph{inside} the ranks beats spending the
+    same cores on more ranks. That is only answerable at equal core counts, so
+    Table~\ref{tab:hybrid-vs-pure} compares the hybrid at two threads per rank against the
+    pure MPI deliverable at the same total core count.
+
+    \textbf{Provenance.} Both designs were measured in the same run by
+    \texttt{compare/scripts/benchmark.py} on an Apple Silicon laptop (macOS 15.6, 10
+    cores, 8 of them performance cores), three repetitions with the minimum kept, every
+    run verified against the instance's \texttt{.out} file. The figures are the committed
+    \texttt{compare/data/comparison.hybrid.csv} and
+    \texttt{comparison.mpi.csv} and are reproducible from this repository.
 
     \begin{table}[!h]
-        \caption{\label{tab:grid-vs-rep}Replicate-all vs.\ 2D-grid (time, s)}
+        \caption{\label{tab:hybrid-vs-pure}Hybrid ($2$ threads/rank) vs.\ pure MPI at
+        equal core count (time, s). Both measured on this laptop in one run.}
         \centering
         \resizebox{\linewidth}{!}{
-            \begin{tabular}[t]{llrrrr}
+            \begin{tabular}[t]{lrrrrrr}
                 \toprule
-                instance & design & 1 & 2 & 4 & 8\\
+                & \multicolumn{2}{c}{2 cores} & \multicolumn{2}{c}{4 cores}
+                & \multicolumn{2}{c}{8 cores}\\
+                \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+                instance & hybrid & pure & hybrid & pure & hybrid & pure\\
                 \midrule
-                inst200 (wide) & replicate & 7.62 & 5.26 & 5.36 & 10.64\\
-                               & \textbf{grid} & 6.42 & 3.73 & 2.22 & 4.25\\
-                \addlinespace
-                inst500        & replicate & 8.50 & 4.84 & 3.28 & 8.41\\
-                               & \textbf{grid} & 8.32 & 4.40 & 2.62 & 2.64\\
-                \addlinespace
-                inst1000       & replicate & 4.15 & 2.70 & 1.89 & 3.03\\
-                               & \textbf{grid} & 4.16 & 2.32 & 1.26 & 1.42\\
+                inst200 (wide) & 4.29 & \textbf{3.94} & 4.90 & \textbf{2.25} & \textbf{2.90} & 2.94\\
+                inst500        & 5.55 & \textbf{4.76} & 3.72 & \textbf{2.66} & 3.84 & \textbf{3.30}\\
+                inst1000       & 2.45 & \textbf{2.22} & 1.66 & \textbf{1.23} & 1.47 & \textbf{0.99}\\
                 \bottomrule
             \end{tabular}}
     \end{table}
 
-    The grid version is faster at essentially every process count, and the gap widens with
-    $P$: replicate-all \emph{regresses} past 4 processes (the dense \texttt{Allreduce}
-    ceiling --- $10.64$\,s on the wide instance at 8 processes), while the grid version
-    keeps scaling. The 2D reductions are why.
+    \textbf{On a single node, pure MPI wins almost everywhere.} The hybrid is $9$--$17\,\%$
+    slower at two cores, $35$--$118\,\%$ slower at four, and $16$--$48\,\%$ slower at
+    eight; the single exception is the wide instance at eight cores, where the two are
+    level ($2.90$ against $2.94$\,s, a $1.6\,\%$ difference that is inside this machine's
+    run-to-run spread). That is the expected result and worth stating plainly: within one
+    node MPI already communicates through shared memory, so a rank boundary costs almost
+    nothing, while a thread boundary costs a barrier and a reduction on every iteration.
 
-    For the hybrid layer on a single node, the picture is more nuanced: pure MPI usually
-    wins, because shared-memory MPI is nearly free while threads add reduction and barrier
-    overhead. Threads pay off only where adding ranks would over-communicate --- on the
-    wide instance at 8 cores, $4$ ranks $\times\,2$ threads ($2.86$\,s) beats $8$ ranks
-    $\times\,1$ thread ($5.11$\,s). The hybrid is fundamentally a \emph{cluster}
-    optimisation: it keeps intra-node work off the network.
+    The one place threads nearly pay for themselves is also the informative one. The wide
+    instance ($200$ users, $10{,}000$ items) has the most lopsided grid, so adding ranks
+    adds communication faster than it adds useful work; there, trading ranks for threads
+    stops being a loss. That is the shape of problem --- and, on a cluster, the network
+    cost --- that the hybrid exists for.
 
+    \textbf{What this measurement cannot show.} Every figure here is from one shared-memory
+    node, which is precisely the setting where the hybrid has least to offer. Its case is
+    one rank per node or socket with threads within, so that inter-node
+    \texttt{Allreduce}s run over a $\sqrt{P}$-smaller grid and intra-node work never
+    touches the network. Nothing in this repository can measure that, and no figure above
+    should be read as evidence about it either way.
 
     \section{Implications for Parallel and Distributed Computing}\label{sec:pdc}
 
     \subsection{Distribute the data, not just the work}\label{subsec:distribute}
     Replicate-all distributes the \emph{work} but not the \emph{data}, so it hits both a
-    memory wall and a communication ceiling. The 2D grid distributes the data: memory and
-    communication per rank both fall as $1/\sqrt{P}$. The general lesson is that a scalable
-    design must shrink each process's footprint, not only its share of the compute.
+    memory wall and a communication ceiling. The 2D grid distributes the data: the factor
+    slices and the gradient fall as $1/\sqrt{P}$, and the dense $B$ built in the final
+    stage --- which dominates the footprint on every instance here --- falls as $1/P$. In
+    this variant there is one more term the pure version does not pay: the gradient loop
+    reduces into per-thread private copies, so each thread adds another
+    $(U\!\cdot\!F + F\!\cdot\!I)/\sqrt{P}$ to its rank. Threads buy parallelism with
+    memory, which is worth knowing before raising the thread count on a tight node.
 
     \subsection{Match the collective to the decomposition}\label{subsec:collective}
     The win is not a faster \texttt{Allreduce}; it is a \emph{smaller} one, over a
@@ -229,5 +257,15 @@
     that, so the recommendations match the serial output bit-for-bit at every process
     count, grid shape, and thread count. A deterministic serial reference is what makes
     this verifiable.
+
+    The guarantee is about the \emph{output}, not the arithmetic. With threads on, $L$ and
+    $R$ differ in their last bits between runs: OpenMP does not specify the order in which
+    per-thread reduction privates are merged, and implementations merge them as threads
+    finish. Measured here, a fixed configuration produced eight distinct $L$/$R$ checksums
+    in eight runs --- under \texttt{schedule(static)} and \texttt{schedule(guided)} alike,
+    so the loop schedule does not control it. The recommendations are integer arg-max
+    indices and are insensitive to drift that small, which is why the byte-for-byte
+    guarantee survives. A bitwise-reproducible gradient would need a fixed-order
+    reduction.
 
 \end{document}
