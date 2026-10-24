@@ -20,16 +20,28 @@ void updateLR(const Grid &g, const Config &cfg, const Cell &cell,
     for (size_t x = 0; x < rN; x++) dR[x] = 0.0;
 
     // local partial gradient: each thread builds a private dL/dR, summed at the barrier
-    #pragma omp for schedule(guided) reduction(+ : dL[:lN], dR[:rN])
-    for (int m = 0; m < cell.nnz; m++) {
-        int lu = cell.localUser[m], li = cell.localItem[m];
-        double pred = 0.0;
-        for (int k = 0; k < F; k++)
-            pred += L[(size_t) lu * F + k] * R[(size_t) k * iLocal + li];
-        double delta = cell.value[m] - pred;
-        for (int k = 0; k < F; k++) {
-            dL[(size_t) lu * F + k]      += alpha * (2 * delta * R[(size_t) k * iLocal + li]);
-            dR[(size_t) k * iLocal + li] += alpha * (2 * delta * L[(size_t) lu * F + k]);
+    //
+    // The guard is required, not an optimisation. When this rank's user-row or
+    // item-column block is empty, lN or rN is zero, and a zero-length array section in
+    // a reduction clause is not valid OpenMP: libgomp sizes the per-thread private copy
+    // from that length and faults at zero (a stack-address SIGSEGV, seen at every
+    // process count where a grid row has more ranks than the instance has users), while
+    // libomp happens to tolerate it. Skipping costs nothing -- an empty block cannot own
+    // a non-zero, so cell.nnz is 0 whenever either length is 0. The condition depends
+    // only on this rank's block, so every thread in the team takes the same branch and
+    // all of them still encounter the remaining worksharing regions in the same order.
+    if (lN > 0 && rN > 0) {
+        #pragma omp for schedule(guided) reduction(+ : dL[:lN], dR[:rN])
+        for (int m = 0; m < cell.nnz; m++) {
+            int lu = cell.localUser[m], li = cell.localItem[m];
+            double pred = 0.0;
+            for (int k = 0; k < F; k++)
+                pred += L[(size_t) lu * F + k] * R[(size_t) k * iLocal + li];
+            double delta = cell.value[m] - pred;
+            for (int k = 0; k < F; k++) {
+                dL[(size_t) lu * F + k]      += alpha * (2 * delta * R[(size_t) k * iLocal + li]);
+                dR[(size_t) k * iLocal + li] += alpha * (2 * delta * L[(size_t) lu * F + k]);
+            }
         }
     }
 

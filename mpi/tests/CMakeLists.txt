@@ -67,6 +67,10 @@ foreach(np 3 8 9)
 endforeach()
 
 # Empty blocks: more ranks than users/items (np16=4x4 on tiny inst0, 3 users).
+# np8 is a 4x2 grid, so grid row 0 already owns zero users -- the cheapest case
+# that exercises an empty block, and the one that caught the zero-length
+# array-section reduction in updateLR under libgomp.
+mpi_compare_test(mpi.empty_blocks.np8  8  inst0)
 mpi_compare_test(mpi.empty_blocks.np16 16 inst0)
 
 # Hybrid path: pin OMP_NUM_THREADS so each rank actually forks threads; the
