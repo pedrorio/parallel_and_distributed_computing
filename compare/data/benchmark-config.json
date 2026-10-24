@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-10-24T18:33:52Z",
+  "measuredAt": "2026-10-24T19:32:59Z",
   "machine": {
     "platform": "macOS-15.6-arm64-arm-64bit",
     "processor": "arm",
@@ -16,11 +16,18 @@
     4,
     8
   ],
+  "hybridThreadsPerRank": 2,
   "repetitions": 3,
   "reduction": "minimum of 3 repetitions",
   "timing": "end-to-end wall clock, recorded in the loop column; other phase columns are not measured",
   "correctness": "every timed run compared against the instance .out file; resultsAreCorrect is the number of differing recommendations",
+  "variants": {
+    "serial": "sequential baseline",
+    "omp": "OpenMP, numberOfThreads is threads",
+    "mpi": "pure MPI, numberOfThreads is processes",
+    "hybrid": "MPI+OpenMP, numberOfThreads is processes at 2 thread(s) per rank"
+  },
   "totalMismatches": 0,
   "mpirun": "mpirun (Open MPI) 5.0.11",
-  "commit": "407dc14"
+  "commit": "54b0739"
 }

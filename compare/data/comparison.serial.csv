@@ -1,4 +1,4 @@
 fileName,numberOfThreads,resultsAreCorrect,numberOfUsers,numberOfItems,numberOfFeatures,numberOfNonZeroElements,numberOfIterations,readInput,initialLR,loop,finalFiltering,total
-../instances/inst1000-1000-100-2-30.in,1,0,1000,1000,100,15642,1000,0,0,4.3927,0,4.3927
-../instances/inst500-500-20-2-100.in,1,0,500,500,20,25328,10000,0,0,8.3858,0,8.3858
-../instances/inst200-10000-50-100-300.in,1,0,200,10000,50,39819,1000,0,0,6.6047,0,6.6047
+../instances/inst1000-1000-100-2-30.in,1,0,1000,1000,100,15642,1000,0,0,4.4795,0,4.4795
+../instances/inst500-500-20-2-100.in,1,0,500,500,20,25328,10000,0,0,8.5077,0,8.5077
+../instances/inst200-10000-50-100-300.in,1,0,200,10000,50,39819,1000,0,0,6.6785,0,6.6785
