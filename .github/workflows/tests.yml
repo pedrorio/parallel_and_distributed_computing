@@ -1,0 +1,57 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [serial, omp, mpi]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake build-essential libgtest-dev libopenmpi-dev openmpi-bin
+
+      # The serial/omp GoogleTest suites read instances from
+      # $TECNICO/distributed_and_parallel_computing/instances/. Point that
+      # hard-coded path at this checkout via a symlink. (MPI uses CTest with a
+      # relative instances path and needs none of this.)
+      - name: Point GoogleTest suites at instances/
+        if: matrix.project != 'mpi'
+        run: |
+          ln -sfn "$GITHUB_WORKSPACE" "$RUNNER_TEMP/distributed_and_parallel_computing"
+          echo "TECNICO=$RUNNER_TEMP" >> "$GITHUB_ENV"
+
+      - name: Configure
+        run: |
+          if [ "${{ matrix.project }}" = mpi ]; then
+            cmake -S mpi -B mpi/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=mpicxx
+          else
+            # -pthread: the suites link GoogleTest via the legacy
+            # ${GTEST_LIBRARIES} variable, which does not carry the pthread
+            # dependency that libgtest needs on Linux.
+            cmake -S ${{ matrix.project }} -B ${{ matrix.project }}/build \
+              -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-pthread
+          fi
+
+      - name: Build
+        run: cmake --build ${{ matrix.project }}/build --parallel
+
+      - name: Test
+        working-directory: ${{ matrix.project }}/build
+        run: ctest --output-on-failure
