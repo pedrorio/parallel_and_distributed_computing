@@ -55,6 +55,10 @@ void readInput(const std::string &inputFile, const Grid &g, Config &cfg,
         }
     }
 
+    // INVARIANT: the validity flag is broadcast BEFORE the header, and every rank aborts
+    // on it together. Only the root parses the file, so if it bailed out without telling
+    // the others, each of them would block in the header Bcast that never comes and the
+    // job would hang instead of failing.
     MPI_Bcast(&ok, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
     if (!ok) {
         if (g.world == ROOT)

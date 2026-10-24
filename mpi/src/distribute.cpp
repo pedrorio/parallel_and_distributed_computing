@@ -11,6 +11,11 @@ Cell distributeNonZeros(const Grid &g, const Config &cfg,
     c.itemStart = blockLow(g.myCol, g.Pc, cfg.items);
     c.iLocal    = blockSize(g.myCol, g.Pc, cfg.items);
 
+    // INVARIANT: a cell's owner is addressed as (row * Pc + col) and the non-zeros are
+    // scattered over MPI_COMM_WORLD, so this arithmetic is only correct while a rank's
+    // Cartesian id equals its world rank -- i.e. while makeGrid passes reorder = 0 to
+    // MPI_Cart_create. Enabling reorder would let MPI renumber the mesh and silently
+    // route every non-zero to the wrong rank.
     int P = g.nprocs, nnz = cfg.nonZeros;
     int *sendCount = NULL, *displs = NULL, *sU = NULL, *sI = NULL;
     double *sV = NULL;

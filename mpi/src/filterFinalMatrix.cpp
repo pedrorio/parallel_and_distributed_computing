@@ -38,6 +38,11 @@ void filterFinalMatrix(const Grid &g, const Config &cfg, const Cell &cell,
         pair[lu].v = mx;
         pair[lu].idx = arg;
     }
+    // INVARIANT: pair[].idx must be the GLOBAL item index, not the block-local one.
+    // Serial scans items in ascending order with a strict >, so it keeps the lowest index
+    // on a tie; MPI_MAXLOC breaks value ties by choosing the smallest index it is given.
+    // Those two rules agree only while the reduced index is global -- with local indices,
+    // a tie would resolve to whichever block happens to have the smaller offset.
     MPI_Allreduce(MPI_IN_PLACE, pair, uLocal, MPI_DOUBLE_INT, MPI_MAXLOC, g.rowComm);
 
     int *bvLocal = new int[uLocal > 0 ? uLocal : 1];
